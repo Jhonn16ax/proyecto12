@@ -35,7 +35,7 @@ button,input{font:inherit}button{cursor:pointer;border:0;font-weight:900;letter-
 <header class="top"><div class="brand"><div class="mark">SR</div><div><div class="eyebrow">ARCADE RACING / 01</div><h1>SPEED <span>RIVALS</span></h1></div></div><div class="pill">NEON CIRCUIT · LOCAL DUEL</div></header>
 <main class="layout">
 <section class="game-card">
-<div class="game-head"><h2>01 / NEON HIGHWAY</h2><div class="live" id="gameState">STANDBY</div></div>
+<div class="game-head"><h2>01 / GRAND PRIX — EXTREME CIRCUIT</h2><div class="live" id="gameState">STANDBY</div></div>
 <canvas id="game" width="960" height="540" aria-label="Juego de carreras en vista superior 2D"></canvas>
 <div class="below">
 <div class="controls">
@@ -53,7 +53,7 @@ button,input{font:inherit}button{cursor:pointer;border:0;font-weight:900;letter-
 <div class="score-row"><span class="subtle">TIEMPO RESTANTE</span><div class="points" id="timer">60</div></div>
 </section>
 <section class="side-card"><h3 class="side-title">HALL OF FAME <span class="subtle">TOP 5</span></h3><div id="leaderboard" class="leaderboard"><div class="empty">El ranking compartido aparecerá cuando conectes Supabase.</div></div><div class="status" id="dbStatus">Conecta Supabase para encontrar a otro piloto.</div></section>
-<section class="side-card"><h3 class="side-title">OBJETIVO</h3><p class="empty">Corre durante 60 segundos por el circuito con curvas. Usa la dirección para cambiar de línea y el turbo para acelerar. Gana quien recorra más distancia.</p></section>
+<section class="side-card"><h3 class="side-title">OBJETIVO</h3><p class="empty">Recorre un circuito GP más técnico, con curvas enlazadas, chicane y horquilla. Acelera en las rectas, frena antes de girar y usa el turbo para marcar distancia.</p></section>
 </aside>
 </main>
 <footer class="footer"><span>SPEED RIVALS © 2026 · BUILT FOR THE TRACK</span><span>LOCAL MULTIPLAYER · SUPABASE READY</span></footer>
@@ -97,10 +97,12 @@ function drawCar(x,y,color,scale,angle=0){ctx.save();ctx.translate(x,y);ctx.rota
  ctx.strokeStyle=color;ctx.lineWidth=2;ctx.shadowColor=color;ctx.shadowBlur=10;ctx.strokeRect(-17,-32,34,64);ctx.restore()}
 function drawObstacle(o){const p=(o.y-90)/(H-90),scale=.25+p*.95;ctx.save();ctx.translate(o.x,o.y);ctx.scale(scale,scale);ctx.fillStyle='#0008';ctx.beginPath();ctx.ellipse(0,25,28,10,0,0,Math.PI*2);ctx.fill();roundedRect(-20,-25,40,52,8,'#ffb33d','#ffe6a1');poly([[-20,-7],[20,-7],[20,3],[-20,3]],'#222b3a');roundedRect(-13,-20,8,6,2,'#fff4bb');roundedRect(5,-20,8,6,2,'#fff4bb');roundedRect(-13,17,8,5,2,'#ff4a64');roundedRect(5,17,8,5,2,'#ff4a64');ctx.restore()}
 function trackPoint(t,offset=0){
- const x=480+345*Math.cos(t)+30*Math.sin(3*t)+14*Math.sin(5*t);
- const y=278+190*Math.sin(t)+18*Math.sin(2*t)+10*Math.sin(4*t);
- const dx=-345*Math.sin(t)+90*Math.cos(3*t)+70*Math.cos(5*t);
- const dy=190*Math.cos(t)+36*Math.cos(2*t)+40*Math.cos(4*t);
+ // Circuito GP ampliado: rectas largas, horquilla, chicane y curvas enlazadas.
+ // La combinación de armónicos crea un trazado irregular en lugar de una elipse pequeña.
+ const x=480+326*Math.cos(t)+62*Math.sin(2*t)-28*Math.cos(3*t)+18*Math.sin(5*t);
+ const y=278+184*Math.sin(t)-48*Math.sin(2*t)+27*Math.cos(3*t)+13*Math.sin(5*t);
+ const dx=-326*Math.sin(t)+124*Math.cos(2*t)+84*Math.sin(3*t)+90*Math.cos(5*t);
+ const dy=184*Math.cos(t)-96*Math.cos(2*t)-81*Math.sin(3*t)+65*Math.cos(5*t);
  const len=Math.hypot(dx,dy)||1;
  return {x:x-(dy/len)*offset,y:y+(dx/len)*offset,angle:Math.atan2(dy,dx)};
 }
@@ -114,7 +116,7 @@ function draw(){
  ctx.fillStyle='#347641';ctx.fillRect(0,0,W,H);
  for(let y=0;y<H;y+=24){ctx.fillStyle=(y/24)%2?'#367c40':'#3d8646';ctx.fillRect(0,y,W,12)}
  for(let i=0;i<85;i++){const x=(i*113+29)%W,y=(i*71+13)%H;ctx.fillStyle=i%2?'#2a6537':'#4d914e';ctx.beginPath();ctx.arc(x,y,3+(i%4),0,Math.PI*2);ctx.fill()}
- // Pista de carreras grande, irregular y con muchas curvas
+ // Pista de carreras GP extendida: curvas enlazadas, chicane y horquilla
  traceTrack(0);ctx.lineWidth=148;ctx.lineJoin='round';ctx.lineCap='round';ctx.strokeStyle='#f4f0df';ctx.stroke();
  traceTrack(0);ctx.lineWidth=136;ctx.strokeStyle='#424b56';ctx.stroke();
  traceTrack(0);ctx.lineWidth=3;ctx.setLineDash([18,17]);ctx.strokeStyle='#e9e1c5';ctx.stroke();ctx.setLineDash([]);
@@ -185,7 +187,7 @@ function draw(){
    ctx.fillStyle='#ff4da6';ctx.font='900 12px system-ui';ctx.textAlign='center';ctx.fillText(String(remoteState.name||'RIVAL').toUpperCase(),rp.x,rp.y-31);ctx.textAlign='left';
  }
  // marcador superior
- ctx.fillStyle='#10172bea';ctx.fillRect(0,0,W,66);ctx.fillStyle='#fff';ctx.font='900 14px system-ui';ctx.fillText('SPEED RIVALS  /  CIRCUIT GP',22,23);
+ ctx.fillStyle='#10172bea';ctx.fillRect(0,0,W,66);ctx.fillStyle='#fff';ctx.font='900 14px system-ui';ctx.fillText('SPEED RIVALS  /  GRAND PRIX',22,23);
  ctx.fillStyle='#34435a';roundedRect(22,37,450,8,4,'#34435a');roundedRect(22,37,450*Math.min(1,elapsed/60),5,3,'#54f6ff');
  ctx.fillStyle='#fff';ctx.font='900 18px system-ui';ctx.fillText(Math.ceil(timeLeft)+' s',505,47);ctx.fillStyle='#54f6ff';ctx.fillText(names[0].toUpperCase()+' '+Math.floor(cars[0].distance)+' m',590,27);ctx.fillStyle='#ff4da6';ctx.fillText(names[1].toUpperCase()+' '+Math.floor(cars[1].distance)+' m',590,49);
  // progreso y salida
