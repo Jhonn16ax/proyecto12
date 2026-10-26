@@ -98,31 +98,40 @@ function drawCar(x,y,color,scale,lean=0){ctx.save();ctx.translate(x,y);ctx.rotat
 function drawObstacle(o){const p=(o.y-90)/(H-90),scale=.25+p*.95;ctx.save();ctx.translate(o.x,o.y);ctx.scale(scale,scale);ctx.fillStyle='#0008';ctx.beginPath();ctx.ellipse(0,25,28,10,0,0,Math.PI*2);ctx.fill();roundedRect(-20,-25,40,52,8,'#ffb33d','#ffe6a1');poly([[-20,-7],[20,-7],[20,3],[-20,3]],'#222b3a');roundedRect(-13,-20,8,6,2,'#fff4bb');roundedRect(5,-20,8,6,2,'#fff4bb');roundedRect(-13,17,8,5,2,'#ff4a64');roundedRect(5,17,8,5,2,'#ff4a64');ctx.restore()}
 function draw(){
  ctx.clearRect(0,0,W,H);
- // Carretera 2D con cámara lateral elevada, cuatro carriles horizontales
- const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#7b466a');bg.addColorStop(.22,'#b89aaa');bg.addColorStop(.55,'#69717f');bg.addColorStop(1,'#172b42');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
- // cielo y franja superior de progreso
- ctx.fillStyle='#39204f';ctx.fillRect(0,0,W,64);ctx.fillStyle='#f5e6f4';ctx.fillRect(52,26,790,5);ctx.fillStyle='#54f6ff';ctx.fillRect(52,26,790*Math.min(1,elapsed/60),5);
- ctx.fillStyle='#fff';ctx.font='bold 18px system-ui';ctx.fillText('SPEED RIVALS',54,17);ctx.font='bold 22px system-ui';ctx.fillText(Math.round(elapsed/60*100)+'%',850,47);
- // carretera ancha, líneas horizontales y bordes
- ctx.fillStyle='#424958';ctx.fillRect(0,90,W,345);
- for(let y=92;y<=435;y+=86){ctx.fillStyle='#d9c4c8';ctx.fillRect(0,y,W,6);ctx.fillStyle='#f3d3bd';for(let x=-60+(roadOffset%100);x<W;x+=100)ctx.fillRect(x,y+2,48,3)}
- ctx.fillStyle='#fff0e5';ctx.fillRect(0,86,W,5);ctx.fillRect(0,430,W,5);
- // marcadores de carril
- for(let x=-70+(roadOffset%110);x<W;x+=110){ctx.fillStyle='#f5d7bd';ctx.fillRect(x,168,65,5);ctx.fillRect(x,254,65,5);ctx.fillRect(x,340,65,5)}
- // luces al borde de la pista
- for(let i=0;i<14;i++){const x=(i*82+(roadOffset*.65)%82)%W;ctx.fillStyle=i%2?'#ff4da6':'#54f6ff';ctx.fillRect(x,444,35,4)}
- // tráfico en perspectiva lateral, en carriles distintos
- obstacles.sort((a,b)=>a.y-b.y).forEach(o=>drawObstacle({...o,y:Math.max(115,Math.min(410,o.y))}));
- const laneY=[133,219,305,391];
- cars.forEach((car,i)=>{const px=150+((car.x+.78)/1.56)*650;const py=laneY[i===0?1:2];drawCar(px,py,car.color,.82,car.hit>0?Math.sin(car.hit*20)*.025:0);ctx.fillStyle=car.color;ctx.font='900 14px system-ui';ctx.textAlign='center';ctx.fillText(i===0?names[0]:names[1],px,py-44);ctx.textAlign='left';});
- // tablero inferior estilo arcade
- ctx.fillStyle='#24183f';ctx.fillRect(0,455,W,85);ctx.fillStyle='#ffb4d8';ctx.fillRect(0,455,W,4);
- roundedRect(28,468,145,54,12,'#10152b','#ff4da6');ctx.fillStyle='#54f6ff';ctx.font='900 10px system-ui';ctx.fillText('PILOTO 1',42,484);ctx.fillStyle='#fff';ctx.font='900 22px system-ui';ctx.fillText(Math.floor(cars[0].distance)+' m',42,511);
- roundedRect(184,468,145,54,12,'#10152b','#54f6ff');ctx.fillStyle='#ff4da6';ctx.font='900 10px system-ui';ctx.fillText('PILOTO 2',198,484);ctx.fillStyle='#fff';ctx.font='900 22px system-ui';ctx.fillText(Math.floor(cars[1].distance)+' m',198,511);
- roundedRect(390,468,180,54,25,'#10152b','#54f6ff');ctx.fillStyle='#54f6ff';ctx.font='900 28px system-ui';ctx.textAlign='center';ctx.fillText(Math.round((cars[0].speed+cars[1].speed)/2)+' km/h',480,503);ctx.textAlign='left';
- if(!running){ctx.fillStyle='#03081677';ctx.fillRect(0,64,W,391);ctx.textAlign='center';ctx.fillStyle='#fff';ctx.font='900 37px system-ui';ctx.fillText(ended?'CARRERA TERMINADA':'SPEED RIVALS',W/2,245);ctx.fillStyle='#54f6ff';ctx.font='700 13px system-ui';ctx.fillText(ended?'PULSA OTRA CARRERA PARA REINICIAR':'CÁMARA 2D LATERAL · DOS JUGADORES',W/2,273);ctx.textAlign='left'}
-}
-function update(dt){
+ // Escenario lateral 2D: cielo al atardecer, ciudad, montañas y carretera con varios carriles
+ const sky=ctx.createLinearGradient(0,0,0,455);sky.addColorStop(0,'#472657');sky.addColorStop(.28,'#9a5579');sky.addColorStop(.55,'#d6a1ac');sky.addColorStop(1,'#65717e');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+ // resplandor del atardecer
+ const sun=ctx.createRadialGradient(720,135,5,720,135,230);sun.addColorStop(0,'#ffd7ac88');sun.addColorStop(1,'#ffd7ac00');ctx.fillStyle=sun;ctx.fillRect(420,0,500,360);
+ // montañas lejanas
+ ctx.fillStyle='#5b4169';ctx.beginPath();ctx.moveTo(0,220);for(let x=0;x<=W;x+=80)ctx.lineTo(x,145+Math.sin(x*.018)*30+Math.sin(x*.041)*16);ctx.lineTo(W,300);ctx.lineTo(0,300);ctx.closePath();ctx.fill();
+ // edificios y silueta de ciudad en el horizonte
+ for(let i=0;i<27;i++){const x=i*39-(roadOffset*.12%39),h=25+(Math.sin(i*8.7)*.5+.5)*72;ctx.fillStyle=i%2?'#463653':'#59415d';ctx.fillRect(x,260-h,30,h);ctx.fillStyle='#ffd4a855';for(let wy=270-h;wy<255;wy+=12)for(let wx=x+5;wx<x+26;wx+=10)ctx.fillRect(wx,wy,4,5)}
+ // barrera y vegetación a los lados
+ ctx.fillStyle='#38464e';ctx.fillRect(0,278,W,18);ctx.fillStyle='#c6b0b8';ctx.fillRect(0,278,W,4);
+ for(let i=0;i<22;i++){const x=(i*54-(roadOffset*.45%54)+W)%W;ctx.fillStyle=i%2?'#264c46':'#315a4d';ctx.beginPath();ctx.moveTo(x,292);ctx.lineTo(x+18,254);ctx.lineTo(x+38,292);ctx.closePath();ctx.fill()}
+ // carretera amplia con profundidad suave
+ const road=ctx.createLinearGradient(0,300,0,455);road.addColorStop(0,'#747583');road.addColorStop(1,'#414b5a');ctx.fillStyle=road;ctx.fillRect(0,296,W,159);
+ // divisiones de carriles horizontales, como la imagen de referencia
+ for(let y of [322,397]){ctx.fillStyle='#e7c8bd';ctx.fillRect(0,y,W,6);for(let x=-60+(roadOffset%100);x<W;x+=100){ctx.fillStyle='#ffdfc7';ctx.fillRect(x,y+1,48,4)}}
+ // borde superior e inferior de carretera
+ ctx.fillStyle='#ffe0d5';ctx.fillRect(0,294,W,5);ctx.fillRect(0,451,W,5);
+ // pequeñas señales y postes del escenario
+ for(let i=0;i<12;i++){const x=(i*90-(roadOffset*.7%90)+W)%W;ctx.fillStyle=i%2?'#ff4da6':'#54f6ff';ctx.fillRect(x,284,5,18);ctx.fillStyle='#fff2e7';ctx.fillRect(x-4,281,13,5)}
+ // tráfico rival y carros de los jugadores
+ obstacles.sort((a,b)=>a.y-b.y).forEach(o=>drawObstacle({...o,y:Math.max(308,Math.min(444,o.y))}));
+ const laneY=[310,350,390,430];
+ cars.forEach((car,i)=>{const px=125+((car.x+.78)/1.56)*710;const py=laneY[i===0?1:2];drawCar(px,py,car.color,.82,car.hit>0?Math.sin(car.hit*20)*.025:0);ctx.fillStyle=car.color;ctx.font='900 14px system-ui';ctx.textAlign='center';ctx.fillText(names[i].toUpperCase(),px,py-43);ctx.textAlign='left'});
+ // panel superior de progreso, al estilo de la referencia
+ ctx.fillStyle='#352044';ctx.fillRect(0,0,W,91);ctx.fillStyle='#f8ddea';ctx.fillRect(52,27,790,5);ctx.fillStyle='#54f6ff';ctx.fillRect(52,27,790*Math.min(1,elapsed/60),5);
+ ctx.fillStyle='#fff';ctx.font='900 13px system-ui';ctx.fillText('SPEED RIVALS',53,18);ctx.font='900 22px system-ui';ctx.fillText(Math.round(elapsed/60*100)+'%',850,51);
+ ctx.fillStyle='#fff';ctx.font='900 12px system-ui';ctx.fillText('PLAYER 1',850,69);ctx.fillStyle='#54f6ff';ctx.font='900 22px system-ui';ctx.fillText('P1',895,69);
+ // tablero inferior inspirado en la referencia
+ ctx.fillStyle='#352044';ctx.fillRect(0,463,W,77);ctx.fillStyle='#f5c3df';ctx.fillRect(0,463,W,4);
+ roundedRect(25,475,145,52,12,'#18172d','#ff4da6');ctx.fillStyle='#54f6ff';ctx.font='900 10px system-ui';ctx.fillText(names[0].toUpperCase(),38,491);ctx.fillStyle='#fff';ctx.font='900 20px system-ui';ctx.fillText(Math.floor(cars[0].distance)+' m',38,516);
+ roundedRect(184,475,145,52,12,'#18172d','#54f6ff');ctx.fillStyle='#ff4da6';ctx.font='900 10px system-ui';ctx.fillText(names[1].toUpperCase(),197,491);ctx.fillStyle='#fff';ctx.font='900 20px system-ui';ctx.fillText(Math.floor(cars[1].distance)+' m',197,516);
+ roundedRect(390,473,180,54,25,'#18172d','#54f6ff');ctx.fillStyle='#54f6ff';ctx.font='900 26px system-ui';ctx.textAlign='center';ctx.fillText(Math.round((cars[0].speed+cars[1].speed)/2)+' km/h',480,508);ctx.textAlign='left';
+ if(!running){ctx.fillStyle='#03081666';ctx.fillRect(0,91,W,372);ctx.textAlign='center';ctx.fillStyle='#fff';ctx.font='900 36px system-ui';ctx.fillText(ended?'CARRERA TERMINADA':'SPEED RIVALS',W/2,245);ctx.fillStyle='#54f6ff';ctx.font='700 13px system-ui';ctx.fillText(ended?'PULSA OTRA CARRERA PARA REINICIAR':'ESCENARIO 2D · CARRERA LATERAL',W/2,273);ctx.textAlign='left'}
+}function update(dt){
  if(!running)return;elapsed+=dt;timeLeft=Math.max(0,60-elapsed);roadOffset+=dt*220;
  const p1left=keys.has('arrowleft')||keys.has('a'),p1right=keys.has('arrowright')||keys.has('d'),p1boost=keys.has('arrowup')||keys.has('w');
  const p2left=keys.has('j'),p2right=keys.has('l'),p2boost=keys.has('i');
