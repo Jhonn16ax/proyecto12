@@ -241,8 +241,13 @@ function restart(){running=false;ended=false;document.getElementById('setup').cl
 document.getElementById('confirmBtn').addEventListener('click',()=>{names[0]=document.getElementById('name1').value.trim()||'AZUL';names[1]=document.getElementById('name2').value.trim()||'ROSA';document.getElementById('name1Display').textContent=names[0].toUpperCase();document.getElementById('name2Display').textContent=names[1].toUpperCase();start()});
 document.getElementById('startBtn').addEventListener('click',()=>{if(ended)restart();else if(!running){document.getElementById('setup').classList.remove('hidden')}});
 document.getElementById('resetBtn').addEventListener('click',restart);
-window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowleft','arrowright','arrowup',' '].includes(k))e.preventDefault();keys.add(k)});
+window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowleft','arrowright','arrowup',' '].includes(k))e.preventDefault();if(['arrowleft','arrowright','arrowup','a','d','w'].includes(k))keys.add(k)});
 window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+// Evita que un control se quede "atascado" si se cambia de ventana o se suelta fuera del juego.
+function clearControls(){keys.clear()}
+window.addEventListener('blur',clearControls);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)clearControls()});
+window.addEventListener('pointerup',e=>{if(!e.target.closest('.drive-pad'))clearControls()});
 // Botones de dirección para pantallas táctiles.
 function bindHoldButton(id,key){const el=document.getElementById(id);if(!el)return;const down=e=>{e.preventDefault();keys.add(key)};const up=e=>{e.preventDefault();keys.delete(key)};el.addEventListener('pointerdown',down);['pointerup','pointercancel','pointerleave'].forEach(ev=>el.addEventListener(ev,up));}
 bindHoldButton('p1left','a');bindHoldButton('p1right','d');bindHoldButton('p2left','j');bindHoldButton('p2right','l');
