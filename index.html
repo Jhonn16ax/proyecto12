@@ -36,7 +36,7 @@ button,input{font:inherit}button{cursor:pointer;border:0;font-weight:900;letter-
 <main class="layout">
 <section class="game-card">
 <div class="game-head"><h2>01 / NEON HIGHWAY</h2><div class="live" id="gameState">STANDBY</div></div>
-<canvas id="game" width="960" height="540" aria-label="Juego de carreras en carretera 3D"></canvas>
+<canvas id="game" width="960" height="540" aria-label="Juego de carreras en vista superior 2D"></canvas>
 <div class="below">
 <div class="controls">
 <div class="player-control"><strong><i class="dot" style="background:var(--cyan)"></i> PILOTO 01 · AZUL</strong><p>Mover: <kbd>A</kbd> <kbd>D</kbd> o <kbd>←</kbd> <kbd>→</kbd><br>Turbo: <kbd>W</kbd> / <kbd>↑</kbd></p></div>
@@ -83,49 +83,30 @@ function resizeCanvas(){const rect=canvas.getBoundingClientRect(); if(!rect.widt
 window.addEventListener('resize',resizeCanvas);
 function roundedRect(x,y,w,h,r,fill,stroke){ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.stroke()}}
 function poly(points,fill){ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);ctx.closePath();ctx.fillStyle=fill;ctx.fill()}
-function roadEdges(y){const p=(y-80)/(H-80);const half=70+p*385;return [W/2-half,W/2+half,p]}
-function drawCar(x,y,color,scale,lean=0){ctx.save();ctx.translate(x,y);ctx.rotate(lean);ctx.scale(scale,scale);
- // shadow
- ctx.fillStyle='#0009';ctx.beginPath();ctx.ellipse(0,7,28,48,0,0,Math.PI*2);ctx.fill();
- // tires
- roundedRect(-30,-27,12,31,4,'#080b12');roundedRect(18,-27,12,31,4,'#080b12');roundedRect(-30,17,12,28,4,'#080b12');roundedRect(18,17,12,28,4,'#080b12');
- // bodywork
- poly([[-24,36],[-28,15],[-25,-24],[-15,-39],[15,-39],[25,-24],[28,15],[24,36],[14,43],[-14,43]],color);
- poly([[-18,-17],[-12,-32],[12,-32],[18,-17],[14,3],[-14,3]],'#17253b');
- poly([[-17,-15],[-10,-29],[0,-30],[0,-15]],'#7cefff77');poly([[2,-29],[10,-28],[16,-15],[2,-15]],'#fff9');
- roundedRect(-19,10,38,12,3,'#121a2b');roundedRect(-19,29,9,5,2,'#ff4e60');roundedRect(10,29,9,5,2,'#ff4e60');
- ctx.shadowColor=color;ctx.shadowBlur=16;ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-23,8);ctx.lineTo(-24,23);ctx.lineTo(-17,35);ctx.moveTo(23,8);ctx.lineTo(24,23);ctx.lineTo(17,35);ctx.stroke();ctx.restore()}
+function roadEdges(y){return [180,780,1]}
+function drawCar(x,y,color,scale,lean=0){ctx.save();ctx.translate(x,y);ctx.rotate(lean);ctx.scale(scale,scale);ctx.fillStyle='#0007';ctx.beginPath();ctx.ellipse(0,5,25,40,0,0,Math.PI*2);ctx.fill();roundedRect(-25,-24,10,24,3,'#080b12');roundedRect(15,-24,10,24,3,'#080b12');roundedRect(-25,17,10,23,3,'#080b12');roundedRect(15,17,10,23,3,'#080b12');roundedRect(-20,-39,40,80,10,color,'#eafaff');roundedRect(-15,-26,30,23,6,'#16253a','#8da8c7');poly([[-13,-23],[0,-31],[13,-23],[11,-9],[-11,-9]],'#b8f5ff');roundedRect(-15,5,30,17,4,'#26364e');roundedRect(-15,-35,8,5,2,'#fff4bd');roundedRect(7,-35,8,5,2,'#fff4bd');roundedRect(-15,30,8,5,2,'#ff334f');roundedRect(7,30,8,5,2,'#ff334f');ctx.shadowColor=color;ctx.shadowBlur=12;ctx.strokeStyle=color;ctx.lineWidth=2;ctx.strokeRect(-18,-36,36,72);ctx.restore()}
 function drawObstacle(o){const p=(o.y-90)/(H-90),scale=.25+p*.95;ctx.save();ctx.translate(o.x,o.y);ctx.scale(scale,scale);ctx.fillStyle='#0008';ctx.beginPath();ctx.ellipse(0,25,28,10,0,0,Math.PI*2);ctx.fill();roundedRect(-20,-25,40,52,8,'#ffb33d','#ffe6a1');poly([[-20,-7],[20,-7],[20,3],[-20,3]],'#222b3a');roundedRect(-13,-20,8,6,2,'#fff4bb');roundedRect(5,-20,8,6,2,'#fff4bb');roundedRect(-13,17,8,5,2,'#ff4a64');roundedRect(5,17,8,5,2,'#ff4a64');ctx.restore()}
 function draw(){
  ctx.clearRect(0,0,W,H);
- const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#101c3e');sky.addColorStop(.55,'#23335a');sky.addColorStop(1,'#11182d');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
- // distant city skyline
- for(let i=0;i<32;i++){let x=i*32-((roadOffset*.12)%32),bh=24+(Math.sin(i*12.3)*.5+.5)*80;ctx.fillStyle=i%2?'#101c37':'#162440';ctx.fillRect(x,210-bh,24,bh);for(let j=0;j<3;j++){ctx.fillStyle=i%3?'#59e6ff33':'#ff5baf44';ctx.fillRect(x+5+j*6,218-bh,2,4)}}
- // horizon glow and ground
- const glow=ctx.createRadialGradient(W/2,245,5,W/2,245,420);glow.addColorStop(0,'#45d7ff33');glow.addColorStop(1,'#11162a00');ctx.fillStyle=glow;ctx.fillRect(0,170,W,H-170);
- ctx.fillStyle='#101c2c';ctx.fillRect(0,270,W,H-270);
- // road trapezoid
- const eTop=roadEdges(80),eBot=roadEdges(H);poly([[eTop[0],80],[eTop[1],80],[eBot[1],H],[eBot[0],H]],'#252c3b');
- // roadside cyan/pink edge lines
- ctx.lineWidth=4;ctx.strokeStyle='#54f6ff';ctx.shadowColor='#54f6ff';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(eTop[0],80);ctx.lineTo(eBot[0],H);ctx.stroke();ctx.shadowColor='#ff4da6';ctx.strokeStyle='#ff4da6';ctx.beginPath();ctx.moveTo(eTop[1],80);ctx.lineTo(eBot[1],H);ctx.stroke();ctx.shadowBlur=0;
- // road lane markings
- for(let i=0;i<18;i++){const t=((i/18+(roadOffset*.035)%1)%1),y=80+t*t*(H-80),half=70+t*385;for(const lane of [-.5,0,.5]){if(lane===0)continue;const x=W/2+lane*half;const seg=5+t*25;ctx.fillStyle='#e8f2ffb0';ctx.fillRect(x-2,y,4,seg)}}
- // side lights
- for(let i=0;i<15;i++){let t=((i/15+(roadOffset*.028)%1)%1),y=80+t*t*(H-80),half=70+t*385;ctx.fillStyle=i%2?'#ff4da6':'#54f6ff';ctx.globalAlpha=.25+t*.7;ctx.fillRect(W/2-half-15,y,4,3+t*8);ctx.fillRect(W/2+half+11,y,4,3+t*8)}ctx.globalAlpha=1;
+ ctx.fillStyle='#142f2b';ctx.fillRect(0,0,W,H);
+ for(let y=0;y<H;y+=34){ctx.fillStyle=(Math.floor(y/34)%2===0)?'#173432':'#193936';ctx.fillRect(0,y,W,17)}
+ roundedRect(160,-8,640,H+16,8,'#303746');
+ ctx.fillStyle='#54f6ff';ctx.fillRect(171,0,5,H);ctx.fillStyle='#ff4da6';ctx.fillRect(789,0,5,H);
+ for(let y=-50+(roadOffset%90);y<H;y+=90){ctx.fillStyle='#f2f5ffcc';ctx.fillRect(365,y,5,43);ctx.fillRect(590,y,5,43)}
+ for(let i=0;i<12;i++){const y=(i*58+(roadOffset*.7)%58)%H;ctx.fillStyle=i%2?'#ff4da6':'#54f6ff';ctx.fillRect(105,y,12,22);ctx.fillRect(843,y,12,22)}
  obstacles.sort((a,b)=>a.y-b.y).forEach(drawObstacle);
- cars.forEach((c,i)=>{const px=W/2+c.x*roadEdges(H)[2]*1.25*1.6;drawCar(px,H-78,c.color,1.05,c.hit>0?Math.sin(c.hit*20)*.08:(c.x-c.lane)*.05)});
- // HUD
- roundedRect(22,20,210,58,12,'#050a18c9','#ffffff1c');ctx.fillStyle='#91a5c9';ctx.font='900 10px system-ui';ctx.fillText('NEON CIRCUIT',36,39);ctx.fillStyle='#fff';ctx.font='900 21px system-ui';ctx.fillText(String(Math.ceil(timeLeft)).padStart(2,'0')+'s',36,64);ctx.fillStyle='#54f6ff';ctx.fillRect(96,56,100*(timeLeft/60),4);
- roundedRect(W-224,20,202,58,12,'#050a18c9','#ffffff1c');ctx.fillStyle='#54f6ff';ctx.font='900 10px system-ui';ctx.fillText(names[0].toUpperCase(),W-209,39);ctx.fillStyle='#fff';ctx.font='900 18px system-ui';ctx.fillText(Math.floor(cars[0].distance)+' m',W-209,63);ctx.fillStyle='#ff4da6';ctx.fillText(names[1].toUpperCase(),W-115,39);ctx.fillStyle='#fff';ctx.fillText(Math.floor(cars[1].distance)+' m',W-115,63);
- if(!running){ctx.fillStyle='#03081666';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle='#fff';ctx.font='900 37px system-ui';ctx.fillText(ended?'RACE COMPLETE':'READY TO RACE',W/2,H/2-10);ctx.fillStyle='#54f6ff';ctx.font='700 13px system-ui';ctx.fillText(ended?'PRESS RESTART TO RACE AGAIN':'TWO DRIVERS · ONE TRACK · NO MERCY',W/2,H/2+22);ctx.textAlign='left'}
+ cars.forEach(c=>{const px=W/2+c.x*330;drawCar(px,H-82,c.color,0.9,c.hit>0?Math.sin(c.hit*20)*.08:(c.x-c.lane)*.05)});
+ roundedRect(22,20,210,58,12,'#050a18e8','#ffffff33');ctx.fillStyle='#91a5c9';ctx.font='900 10px system-ui';ctx.fillText('NEON CIRCUIT · 2D',36,39);ctx.fillStyle='#fff';ctx.font='900 21px system-ui';ctx.fillText(String(Math.ceil(timeLeft)).padStart(2,'0')+'s',36,64);ctx.fillStyle='#54f6ff';ctx.fillRect(96,56,100*(timeLeft/60),4);
+ roundedRect(W-224,20,202,58,12,'#050a18e8','#ffffff33');ctx.fillStyle='#54f6ff';ctx.font='900 10px system-ui';ctx.fillText(names[0].toUpperCase(),W-209,39);ctx.fillStyle='#fff';ctx.font='900 18px system-ui';ctx.fillText(Math.floor(cars[0].distance)+' m',W-209,63);ctx.fillStyle='#ff4da6';ctx.fillText(names[1].toUpperCase(),W-115,39);ctx.fillStyle='#fff';ctx.fillText(Math.floor(cars[1].distance)+' m',W-115,63);
+ if(!running){ctx.fillStyle='#03081688';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle='#fff';ctx.font='900 37px system-ui';ctx.fillText(ended?'RACE COMPLETE':'READY TO RACE',W/2,H/2-10);ctx.fillStyle='#54f6ff';ctx.font='700 13px system-ui';ctx.fillText(ended?'PRESS RESTART TO RACE AGAIN':'2D TOP VIEW · TWO DRIVERS · ONE TRACK',W/2,H/2+22);ctx.textAlign='left'}
 }
 function update(dt){
  if(!running)return;elapsed+=dt;timeLeft=Math.max(0,60-elapsed);roadOffset+=dt*220;
  const p1left=keys.has('arrowleft')||keys.has('a'),p1right=keys.has('arrowright')||keys.has('d'),p1boost=keys.has('arrowup')||keys.has('w');
  const p2left=keys.has('j'),p2right=keys.has('l'),p2boost=keys.has('i');
  [ [p1left,p1right,p1boost],[p2left,p2right,p2boost] ].forEach((input,i)=>{const c=cars[i];const [left,right,boost]=input;const turbo=boost&&c.boost>0;c.boost=Math.max(0,Math.min(100,c.boost+(turbo?-36:18)*dt));c.x+=(right?1:0)*dt*1.8-(left?1:0)*dt*1.8;c.x=Math.max(-.78,Math.min(.78,c.x));const target=(turbo?210:150)*(c.hit>0?.35:1);c.speed+=(target-c.speed)*Math.min(1,dt*2.3);c.distance+=c.speed*dt/10;c.hit=Math.max(0,c.hit-dt);});
- spawn-=dt;if(spawn<=0){spawn=Math.max(.38,1.15-elapsed*.008);const lane=(Math.random()*1.4-.7);obstacles.push({x:W/2+lane*400,y:85, lane})}
- obstacles.forEach(o=>{const speed=170+elapsed*1.4;o.y+=speed*dt;cars.forEach((c,i)=>{const cx=W/2+c.x*roadEdges(H)[2]*1.25*1.6;if(!o.hit&&o.y>H-145&&o.y<H-65&&Math.abs(cx-o.x)<42){o.hit=true;c.speed*=.28;c.hit=.8;c.distance=Math.max(0,c.distance-10);for(let k=0;k<8;k++)particles.push({x:cx,y:H-90,vx:(Math.random()-.5)*180,vy:-Math.random()*160,life:.45,color:c.color})}})});
+ spawn-=dt;if(spawn<=0){spawn=Math.max(.38,1.15-elapsed*.008);const lane=(Math.random()*1.45-.725);obstacles.push({x:W/2+lane*330,y:85,lane})}
+ obstacles.forEach(o=>{const speed=170+elapsed*1.4;o.y+=speed*dt;cars.forEach((c,i)=>{const cx=W/2+c.x*330;if(!o.hit&&o.y>H-145&&o.y<H-65&&Math.abs(cx-o.x)<42){o.hit=true;c.speed*=.28;c.hit=.8;c.distance=Math.max(0,c.distance-10);for(let k=0;k<8;k++)particles.push({x:cx,y:H-90,vx:(Math.random()-.5)*180,vy:-Math.random()*160,life:.45,color:c.color})}})});
  obstacles=obstacles.filter(o=>o.y<H+80&&!o.hit);
  particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=220*dt;p.life-=dt});particles=particles.filter(p=>p.life>0);particles.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life*2);ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,3,3)});ctx.globalAlpha=1;
  document.getElementById('score1').textContent=Math.floor(cars[0].distance);document.getElementById('score2').textContent=Math.floor(cars[1].distance);document.getElementById('timer').textContent=Math.ceil(timeLeft);
