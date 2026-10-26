@@ -198,8 +198,20 @@ function draw(){
  const right=keys.has('arrowright');
  const accelerate=keys.has('arrowup');
  const brake=keys.has('arrowdown');
- const turbo=accelerate&&car.boost>0;
- car.boost=Math.max(0,Math.min(100,car.boost+(turbo?-32:20)*dt));
+ const turboPressed=keys.has(' ');
+ if(turboPressed&&car.boostReady&&!car.turboActive){
+   car.turboActive=true;
+   car.boostReady=false;
+   car.boostCooldown=12;
+ }
+ if(car.turboActive){
+   car.boostCooldown-=dt;
+   if(car.boostCooldown<=0){
+     car.turboActive=false;
+     car.boostReady=true;
+     car.boostCooldown=0;
+   }
+ }
  // Arriba acelera, abajo frena, izquierda/derecha giran.
  // El coche permanece quieto si no se pulsa arriba; abajo reduce velocidad.
  if(left) car.x-=dt*1.05;
@@ -242,13 +254,13 @@ function syncPlayer(dt){
 }
 function frame(t){const dt=Math.min(.035,(t-last)/1000||0);last=t;if(running)update(dt);syncPlayer(dt);draw();requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
-function start(){document.getElementById('setup').classList.add('hidden');running=true;ended=false;elapsed=0;timeLeft=60;cars[0].x=-.25;cars[0].speed=0;cars[0].distance=0;cars[0].boost=100;cars[0].hit=0;cars[0].progress=-Math.PI/2;document.getElementById('gameState').textContent='RACE LIVE';document.getElementById('startBtn').textContent='Carrera en curso';document.getElementById('startBtn').disabled=true;document.getElementById('status').textContent=remoteOnline?'¡Rival conectado! Compite usando las flechas o A/D y W para turbo.':'↑ acelera, ↓ frena y ←/→ giran. Sin pulsar ↑, el coche no avanza.'}
+function start(){document.getElementById('setup').classList.add('hidden');running=true;ended=false;elapsed=0;timeLeft=60;cars[0].x=-.25;cars[0].speed=0;cars[0].distance=0;cars[0].boost=100;cars[0].hit=0;cars[0].progress=-Math.PI/2;document.getElementById('gameState').textContent='RACE LIVE';document.getElementById('startBtn').textContent='Carrera en curso';document.getElementById('startBtn').disabled=true;document.getElementById('status').textContent=remoteOnline?'¡Rival conectado! Compite usando las flechas o A/D y W para turbo.':'↑ acelera, ↓ frena, ←/→ giran y ESPACIO activa el turbo durante 12 segundos antes de recargarse.'}
 function finishRace(){running=false;ended=true;document.getElementById('gameState').textContent='FINISH';document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Otra carrera';const winner=cars[0].distance===cars[1].distance?'Empate':cars[0].distance>cars[1].distance?names[0]:names[1];document.getElementById('status').textContent='Carrera terminada. '+(winner==='Empate'?'¡Empate!':winner+' gana')+'. Guardando resultado si Supabase está conectado…';saveResult(winner)}
 function restart(){running=false;ended=false;document.getElementById('setup').classList.remove('hidden');document.getElementById('gameState').textContent='STANDBY';document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Iniciar carrera';timeLeft=60;elapsed=0;cars[0].distance=0;cars[0].speed=0;cars[0].x=-.25;cars[0].progress=-Math.PI/2;cars[0].hit=0;cars[0].boost=100;draw()}
 document.getElementById('confirmBtn').addEventListener('click',()=>{names[0]=document.getElementById('name1').value.trim()||'AZUL';names[1]=document.getElementById('name2').value.trim()||'ROSA';document.getElementById('name1Display').textContent=names[0].toUpperCase();document.getElementById('name2Display').textContent=names[1].toUpperCase();start()});
 document.getElementById('startBtn').addEventListener('click',()=>{if(ended)restart();else if(!running){document.getElementById('setup').classList.remove('hidden')}});
 document.getElementById('resetBtn').addEventListener('click',restart);
-window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowleft','arrowright','arrowup','arrowdown',' '].includes(k))e.preventDefault();if(['arrowleft','arrowright','arrowup','arrowdown'].includes(k))keys.add(k)});
+window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowleft','arrowright','arrowup','arrowdown',' '].includes(k))e.preventDefault();if(['arrowleft','arrowright','arrowup','arrowdown',' '].includes(k))keys.add(k)});
 window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 // Evita que un control se quede "atascado" si se cambia de ventana o se suelta fuera del juego.
 function clearControls(){keys.clear()}
