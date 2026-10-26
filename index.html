@@ -208,7 +208,7 @@ function draw(){
  if(right) car.x+=dt*1.05;
  car.x=Math.max(-1.05,Math.min(1.05,car.x));
  if(accelerate){
-   car.speed=Math.min(turbo?2.05:1.22,car.speed+dt*2.4);
+   car.speed=Math.min(car.turboActive?2.05:1.22,car.speed+dt*(car.turboActive?4.2:2.4));
  }else if(brake){
    car.speed=Math.max(0,car.speed-dt*3.5);
  }else{
