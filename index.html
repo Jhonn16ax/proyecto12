@@ -122,42 +122,53 @@ function draw(){
  ctx.fillStyle='#55a45b';ctx.beginPath();ctx.ellipse(480,278,137,55,.08,0,Math.PI*2);ctx.fill();
  // árboles alrededor de la pista
  for(let i=0;i<34;i++){const t=i/34*Math.PI*2,p=trackPoint(t,100+(i%3)*17);ctx.fillStyle=i%2?'#235c35':'#194d30';ctx.beginPath();ctx.arc(p.x,p.y,8+(i%3)*2,0,Math.PI*2);ctx.fill();ctx.fillStyle='#63a953';ctx.beginPath();ctx.arc(p.x-2,p.y-3,5,0,Math.PI*2);ctx.fill()}
- // Infraestructura visual del circuito: boxes, gradas, muros y señalización (vista 2D)
- // Edificio de boxes y carril de servicio en la zona inferior derecha
+ // Infraestructura 2D integrada al escenario: edificios, tribunas, boxes y barreras.
+ // Tribuna principal fuera de la curva superior izquierda
  ctx.save();
- roundedRect(650,438,235,58,7,'#182638','#91a6b7');
- roundedRect(663,447,210,31,4,'#293d50','#607b91');
+ roundedRect(30,84,170,56,5,'#17283b','#b9c8d7');
+ roundedRect(37,91,156,35,3,'#314b63','#6f879d');
+ for(let row=0;row<3;row++)for(let col=0;col<19;col++){
+   ctx.fillStyle=(row+col)%4===0?'#ff4da6':(row+col)%3===0?'#54f6ff':'#d9e6ef';
+   ctx.fillRect(43+col*7.8,95+row*9,5,5);
+ }
+ ctx.fillStyle='#f5f8ff';ctx.font='900 8px system-ui';ctx.textAlign='center';ctx.fillText('TRIBUNA PRINCIPAL',115,135);
+ // Centro médico y torre de control
+ roundedRect(790,82,125,48,5,'#1a2939','#9eb2c5');
+ roundedRect(799,89,107,25,3,'#324a60','#5f7890');
+ ctx.fillStyle='#54f6ff';ctx.fillRect(807,96,12,12);ctx.fillRect(812,91,3,22);ctx.fillRect(802,101,22,3);
+ ctx.fillStyle='#e8f0fa';ctx.font='800 8px system-ui';ctx.textAlign='center';ctx.fillText('CONTROL / MEDICAL',852,123);
+ // Complejo de boxes con puertas y carril de servicio separado
+ roundedRect(678,420,240,58,6,'#172638','#a5b7c7');
+ ctx.fillStyle='#dbe5ed';ctx.font='900 9px system-ui';ctx.textAlign='center';ctx.fillText('PIT BUILDING',798,433);
  for(let i=0;i<6;i++){
-   const bx=670+i*33;
-   roundedRect(bx,451,27,22,3,i%2?'#101b2a':'#d8e4eb','#52697d');
-   ctx.fillStyle=i%2?'#ff4da6':'#54f6ff';ctx.fillRect(bx+3,454,21,3);
-   ctx.fillStyle='#cbd8e6';ctx.font='700 7px system-ui';ctx.textAlign='center';ctx.fillText('BOX '+(i+1),bx+13,468);
+   const bx=687+i*37;
+   roundedRect(bx,440,31,27,3,'#293f53','#8299ac');
+   ctx.fillStyle=i%2?'#ff4da6':'#54f6ff';ctx.fillRect(bx+3,444,25,4);
+   ctx.fillStyle='#c7d5e2';ctx.fillRect(bx+5,452,21,11);
  }
- ctx.fillStyle='#f3f6fa';ctx.font='900 10px system-ui';ctx.textAlign='center';ctx.fillText('PIT LANE',767,490);
- // Gradas con filas de asientos en el sector superior izquierdo
- roundedRect(28,82,115,48,5,'#26384c','#9fb2c6');
- for(let row=0;row<4;row++)for(let col=0;col<12;col++){
-   ctx.fillStyle=(row+col)%3===0?'#ff4da6':(row+col)%2?'#54f6ff':'#d9e6ef';
-   ctx.fillRect(35+col*8.5,88+row*9,5,5);
+ roundedRect(683,483,230,18,3,'#3b4652','#c5d0d9');
+ ctx.fillStyle='#fff';ctx.font='900 8px system-ui';ctx.fillText('PIT LANE  →',798,495);
+ // Vallas de seguridad con postes repetidos en los laterales exteriores
+ for(const range of [[-Math.PI*.80,-Math.PI*.49],[Math.PI*.12,Math.PI*.39]]){
+   for(let i=0;i<=22;i++){
+     const t=range[0]+(range[1]-range[0])*i/22;
+     const p=trackPoint(t,91);
+     ctx.fillStyle='#e8edf2';ctx.fillRect(p.x-3,p.y-3,6,6);
+     ctx.fillStyle=i%2?'#ff4da6':'#54f6ff';ctx.fillRect(p.x-3,p.y-3,6,2);
+   }
  }
- ctx.fillStyle='#f5f8ff';ctx.font='900 8px system-ui';ctx.textAlign='center';ctx.fillText('SPEED RIVALS GRANDSTAND',86,139);
- // Vallas de seguridad y postes alrededor de sectores del circuito
- for(let i=0;i<15;i++){
-   const p=trackPoint(-Math.PI*.78+i*.035,91);
-   ctx.fillStyle='#e8edf2';ctx.fillRect(p.x-3,p.y-3,6,6);
-   ctx.fillStyle=i%2?'#ff4da6':'#54f6ff';ctx.fillRect(p.x-3,p.y-3,6,2);
- }
- for(let i=0;i<13;i++){
-   const p=trackPoint(Math.PI*.20+i*.035,91);
-   ctx.fillStyle='#e8edf2';ctx.fillRect(p.x-3,p.y-3,6,6);
-   ctx.fillStyle=i%2?'#ff4da6':'#54f6ff';ctx.fillRect(p.x-3,p.y-3,6,2);
- }
- // Carteles de curva y paneles publicitarios
- const signs=[{x:105,y:250,t:'BRAKE'},{x:830,y:180,t:'TURBO'},{x:710,y:70,t:'RIVALS GP'}];
+ // Publicidad y señalización en el césped, fuera del asfalto
+ const signs=[{x:90,y:190,t:'BRAKE ZONE'},{x:844,y:205,t:'TURBO'},{x:470,y:470,t:'SPEED RIVALS GP'}];
  signs.forEach((s,i)=>{
-   roundedRect(s.x-28,s.y-10,56,20,4,'#111c2b','#71859a');
+   roundedRect(s.x-39,s.y-10,78,20,4,'#111c2b','#71859a');
    ctx.fillStyle=i===1?'#54f6ff':'#ff4da6';ctx.font='900 8px system-ui';ctx.textAlign='center';ctx.fillText(s.t,s.x,s.y+3);
  });
+ // Árboles y luminarias alrededor del complejo
+ for(let i=0;i<18;i++){
+   const x=225+(i*41)%500,y=72+(i%3)*15;
+   ctx.fillStyle='#194d30';ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle='#63a953';ctx.beginPath();ctx.arc(x-2,y-2,4,0,Math.PI*2);ctx.fill();
+ }
  ctx.restore();
  // línea de salida y meta sobre el circuito
  const finish=trackPoint(-Math.PI/2,0);ctx.save();ctx.translate(finish.x,finish.y);ctx.rotate(finish.angle);for(let i=0;i<10;i++)for(let j=0;j<2;j++){ctx.fillStyle=(i+j)%2?'#fff':'#171b24';ctx.fillRect(-48+i*10,-64+j*10,10,10)}ctx.restore();
