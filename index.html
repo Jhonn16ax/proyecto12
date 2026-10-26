@@ -39,7 +39,7 @@ button,input{font:inherit}button{cursor:pointer;border:0;font-weight:900;letter-
 <canvas id="game" width="960" height="540" aria-label="Juego de carreras en vista superior 2D"></canvas>
 <div class="below">
 <div class="controls">
-<div class="player-control"><strong><i class="dot" style="background:var(--cyan)"></i> PILOTO 01 · AZUL</strong><p>Mover: <kbd>A</kbd> <kbd>D</kbd> o <kbd>←</kbd> <kbd>→</kbd><br>Turbo: <kbd>W</kbd> / <kbd>↑</kbd></p></div>
+<div class="player-control"><strong><i class="dot" style="background:var(--cyan)"></i> PILOTO 01 · AZUL</strong><p>Girar: <kbd>←</kbd> <kbd>→</kbd><br>Acelerar: <kbd>↑</kbd> · Frenar: <kbd>↓</kbd><br>Turbo: <kbd>ESPACIO</kbd> (recarga 12 s)</p></div>
 <div class="player-control hidden" id="player2Controls"><strong><i class="dot" style="background:var(--pink)"></i> RIVAL CONECTADO</strong><p>El otro jugador controla su coche desde su propio navegador.</p></div>
 </div>
 <div class="drive-pad"><button id="p1left">◀ P1 IZQUIERDA</button><button id="p1right">P1 DERECHA ▶</button></div><div class="drive-pad hidden" id="player2Pad"><button id="p2left">◀ RIVAL IZQUIERDA</button><button id="p2right">RIVAL DERECHA ▶</button></div><div class="actions"><button class="primary" id="startBtn">▶ Iniciar carrera</button><button class="secondary" id="resetBtn">Reiniciar</button></div>
@@ -77,7 +77,7 @@ let running=false,ended=false,last=0,elapsed=0,timeLeft=60,spawn=0,roadOffset=0,
 let names=['AZUL','ROSA'];
 // Cada navegador controla un solo coche. El segundo se dibuja sólo al recibir datos de otro jugador conectado.
 const cars=[
- {x:-.25,lane:-.25,color:'#54f6ff',accent:'#e4ffff',speed:0,distance:0,boost:100,hit:0,progress:-Math.PI/2,steer:0},
+ {x:-.25,lane:-.25,color:'#54f6ff',accent:'#e4ffff',speed:0,distance:0,boost:100,boostReady:true,turboActive:false,boostCooldown:0,hit:0,progress:-Math.PI/2,steer:0},
  {x:.25,lane:.25,color:'#ff4da6',accent:'#ffe2f1',speed:0,distance:0,boost:100,hit:0,progress:-Math.PI/2+.09,steer:0}
 ];
 const clientId=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+Math.random();
@@ -199,19 +199,9 @@ function draw(){
  const accelerate=keys.has('arrowup');
  const brake=keys.has('arrowdown');
  const turboPressed=keys.has(' ');
- if(turboPressed&&car.boostReady&&!car.turboActive){
-   car.turboActive=true;
-   car.boostReady=false;
-   car.boostCooldown=12;
- }
- if(car.turboActive){
-   car.boostCooldown-=dt;
-   if(car.boostCooldown<=0){
-     car.turboActive=false;
-     car.boostReady=true;
-     car.boostCooldown=0;
-   }
- }
+ if(turboPressed&&car.boostReady&&!car.turboActive){car.turboActive=true;car.boostReady=false;car.boostCooldown=12;}
+ if(car.turboActive){car.boostCooldown-=dt;if(car.boostCooldown<=10)car.turboActive=false;}
+ else if(!car.boostReady&&car.boostCooldown>0){car.boostCooldown-=dt;if(car.boostCooldown<=0){car.boostReady=true;car.boostCooldown=0;}}
  // Arriba acelera, abajo frena, izquierda/derecha giran.
  // El coche permanece quieto si no se pulsa arriba; abajo reduce velocidad.
  if(left) car.x-=dt*1.05;
@@ -254,9 +244,9 @@ function syncPlayer(dt){
 }
 function frame(t){const dt=Math.min(.035,(t-last)/1000||0);last=t;if(running)update(dt);syncPlayer(dt);draw();requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
-function start(){document.getElementById('setup').classList.add('hidden');running=true;ended=false;elapsed=0;timeLeft=60;cars[0].x=-.25;cars[0].speed=0;cars[0].distance=0;cars[0].boost=100;cars[0].hit=0;cars[0].progress=-Math.PI/2;document.getElementById('gameState').textContent='RACE LIVE';document.getElementById('startBtn').textContent='Carrera en curso';document.getElementById('startBtn').disabled=true;document.getElementById('status').textContent=remoteOnline?'¡Rival conectado! Compite usando las flechas o A/D y W para turbo.':'↑ acelera, ↓ frena, ←/→ giran y ESPACIO activa el turbo durante 12 segundos antes de recargarse.'}
+function start(){document.getElementById('setup').classList.add('hidden');running=true;ended=false;elapsed=0;timeLeft=60;cars[0].x=-.25;cars[0].speed=0;cars[0].distance=0;cars[0].boost=100;cars[0].boostReady=true;cars[0].turboActive=false;cars[0].boostCooldown=0;cars[0].hit=0;cars[0].progress=-Math.PI/2;document.getElementById('gameState').textContent='RACE LIVE';document.getElementById('startBtn').textContent='Carrera en curso';document.getElementById('startBtn').disabled=true;document.getElementById('status').textContent=remoteOnline?'¡Rival conectado! Usa ↑ para acelerar, ↓ para frenar, ←/→ para girar y ESPACIO para turbo.':'↑ acelera, ↓ frena, ←/→ giran. ESPACIO activa un impulso y el turbo se recarga en 12 segundos.'}
 function finishRace(){running=false;ended=true;document.getElementById('gameState').textContent='FINISH';document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Otra carrera';const winner=cars[0].distance===cars[1].distance?'Empate':cars[0].distance>cars[1].distance?names[0]:names[1];document.getElementById('status').textContent='Carrera terminada. '+(winner==='Empate'?'¡Empate!':winner+' gana')+'. Guardando resultado si Supabase está conectado…';saveResult(winner)}
-function restart(){running=false;ended=false;document.getElementById('setup').classList.remove('hidden');document.getElementById('gameState').textContent='STANDBY';document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Iniciar carrera';timeLeft=60;elapsed=0;cars[0].distance=0;cars[0].speed=0;cars[0].x=-.25;cars[0].progress=-Math.PI/2;cars[0].hit=0;cars[0].boost=100;draw()}
+function restart(){running=false;ended=false;document.getElementById('setup').classList.remove('hidden');document.getElementById('gameState').textContent='STANDBY';document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Iniciar carrera';timeLeft=60;elapsed=0;cars[0].distance=0;cars[0].speed=0;cars[0].x=-.25;cars[0].progress=-Math.PI/2;cars[0].hit=0;cars[0].boost=100;cars[0].boostReady=true;cars[0].turboActive=false;cars[0].boostCooldown=0;draw()}
 document.getElementById('confirmBtn').addEventListener('click',()=>{names[0]=document.getElementById('name1').value.trim()||'AZUL';names[1]=document.getElementById('name2').value.trim()||'ROSA';document.getElementById('name1Display').textContent=names[0].toUpperCase();document.getElementById('name2Display').textContent=names[1].toUpperCase();start()});
 document.getElementById('startBtn').addEventListener('click',()=>{if(ended)restart();else if(!running){document.getElementById('setup').classList.remove('hidden')}});
 document.getElementById('resetBtn').addEventListener('click',restart);
