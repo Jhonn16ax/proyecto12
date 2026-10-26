@@ -94,10 +94,10 @@ function drawCar(x,y,color,scale,angle=0){ctx.save();ctx.translate(x,y);ctx.rota
  ctx.strokeStyle=color;ctx.lineWidth=2;ctx.shadowColor=color;ctx.shadowBlur=10;ctx.strokeRect(-17,-32,34,64);ctx.restore()}
 function drawObstacle(o){const p=(o.y-90)/(H-90),scale=.25+p*.95;ctx.save();ctx.translate(o.x,o.y);ctx.scale(scale,scale);ctx.fillStyle='#0008';ctx.beginPath();ctx.ellipse(0,25,28,10,0,0,Math.PI*2);ctx.fill();roundedRect(-20,-25,40,52,8,'#ffb33d','#ffe6a1');poly([[-20,-7],[20,-7],[20,3],[-20,3]],'#222b3a');roundedRect(-13,-20,8,6,2,'#fff4bb');roundedRect(5,-20,8,6,2,'#fff4bb');roundedRect(-13,17,8,5,2,'#ff4a64');roundedRect(5,17,8,5,2,'#ff4a64');ctx.restore()}
 function trackPoint(t,offset=0){
- const x=480+326*Math.cos(t)+34*Math.sin(3*t)+18*Math.sin(5*t);
- const y=277+176*Math.sin(t)+20*Math.sin(2*t)+12*Math.sin(4*t);
- const dx=-326*Math.sin(t)+102*Math.cos(3*t)+90*Math.cos(5*t);
- const dy=176*Math.cos(t)+40*Math.cos(2*t)+48*Math.cos(4*t);
+ const x=480+345*Math.cos(t)+30*Math.sin(3*t)+14*Math.sin(5*t);
+ const y=278+190*Math.sin(t)+18*Math.sin(2*t)+10*Math.sin(4*t);
+ const dx=-345*Math.sin(t)+90*Math.cos(3*t)+70*Math.cos(5*t);
+ const dy=190*Math.cos(t)+36*Math.cos(2*t)+40*Math.cos(4*t);
  const len=Math.hypot(dx,dy)||1;
  return {x:x-(dy/len)*offset,y:y+(dx/len)*offset,angle:Math.atan2(dy,dx)};
 }
@@ -112,14 +112,14 @@ function draw(){
  for(let y=0;y<H;y+=24){ctx.fillStyle=(y/24)%2?'#367c40':'#3d8646';ctx.fillRect(0,y,W,12)}
  for(let i=0;i<85;i++){const x=(i*113+29)%W,y=(i*71+13)%H;ctx.fillStyle=i%2?'#2a6537':'#4d914e';ctx.beginPath();ctx.arc(x,y,3+(i%4),0,Math.PI*2);ctx.fill()}
  // Pista de carreras grande, irregular y con muchas curvas
- traceTrack(0);ctx.lineWidth=132;ctx.lineJoin='round';ctx.lineCap='round';ctx.strokeStyle='#f4f0df';ctx.stroke();
- traceTrack(0);ctx.lineWidth=120;ctx.strokeStyle='#424b56';ctx.stroke();
+ traceTrack(0);ctx.lineWidth=148;ctx.lineJoin='round';ctx.lineCap='round';ctx.strokeStyle='#f4f0df';ctx.stroke();
+ traceTrack(0);ctx.lineWidth=136;ctx.strokeStyle='#424b56';ctx.stroke();
  traceTrack(0);ctx.lineWidth=3;ctx.setLineDash([18,17]);ctx.strokeStyle='#e9e1c5';ctx.stroke();ctx.setLineDash([]);
  // bordes de colores de ambos lados
- for(const off of [-61,61]){traceTrack(off);ctx.lineWidth=5;ctx.strokeStyle='#f6f2e8';ctx.stroke();traceTrack(off+(off<0?3:-3));ctx.lineWidth=2;ctx.strokeStyle='#ff4da6';ctx.stroke()}
+ for(const off of [-69,69]){traceTrack(off);ctx.lineWidth=5;ctx.strokeStyle='#f6f2e8';ctx.stroke();traceTrack(off+(off<0?3:-3));ctx.lineWidth=2;ctx.strokeStyle='#ff4da6';ctx.stroke()}
  // isla central y decoración del parque
- ctx.fillStyle='#4b9950';ctx.beginPath();ctx.ellipse(480,278,160,76,-.12,0,Math.PI*2);ctx.fill();
- ctx.fillStyle='#55a45b';ctx.beginPath();ctx.ellipse(480,278,125,49,.08,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#4b9950';ctx.beginPath();ctx.ellipse(480,278,174,84,-.12,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#55a45b';ctx.beginPath();ctx.ellipse(480,278,137,55,.08,0,Math.PI*2);ctx.fill();
  // árboles alrededor de la pista
  for(let i=0;i<34;i++){const t=i/34*Math.PI*2,p=trackPoint(t,100+(i%3)*17);ctx.fillStyle=i%2?'#235c35':'#194d30';ctx.beginPath();ctx.arc(p.x,p.y,8+(i%3)*2,0,Math.PI*2);ctx.fill();ctx.fillStyle='#63a953';ctx.beginPath();ctx.arc(p.x-2,p.y-3,5,0,Math.PI*2);ctx.fill()}
  // línea de salida y meta sobre el circuito
