@@ -53,7 +53,7 @@ button,input{font:inherit}button{cursor:pointer;border:0;font-weight:900;letter-
 <div class="score-row"><span class="subtle">TIEMPO RESTANTE</span><div class="points" id="timer">60</div></div>
 </section>
 <section class="side-card"><h3 class="side-title">HALL OF FAME <span class="subtle">TOP 5</span></h3><div id="leaderboard" class="leaderboard"><div class="empty">El ranking compartido aparecerá cuando conectes Supabase.</div></div><div class="status" id="dbStatus">Modo demo: base de datos aún sin configurar.</div></section>
-<section class="side-card"><h3 class="side-title">OBJETIVO</h3><p class="empty">Sobrevive 60 segundos. Cada tramo suma puntos; los choques te hacen perder velocidad. Quien llegue más lejos gana.</p></section>
+<section class="side-card"><h3 class="side-title">OBJETIVO</h3><p class="empty">Corre durante 60 segundos por el circuito con curvas. Usa la dirección para cambiar de línea y el turbo para acelerar. Gana quien recorra más distancia.</p></section>
 </aside>
 </main>
 <footer class="footer"><span>SPEED RIVALS © 2026 · BUILT FOR THE TRACK</span><span>LOCAL MULTIPLAYER · SUPABASE READY</span></footer>
@@ -76,8 +76,8 @@ const W=960,H=540,keys=new Set();
 let running=false,ended=false,last=0,elapsed=0,timeLeft=60,spawn=0,roadOffset=0,obstacles=[],particles=[];
 let names=['AZUL','ROSA'];
 const cars=[
- {x:-.29,lane:-.29,color:'#54f6ff',accent:'#e4ffff',speed:0,distance:0,boost:100,hit:0},
- {x:.29,lane:.29,color:'#ff4da6',accent:'#ffe2f1',speed:0,distance:0,boost:100,hit:0}
+ {x:-.25,lane:-.25,color:'#54f6ff',accent:'#e4ffff',speed:0,distance:0,boost:100,hit:0,progress:0,steer:0},
+ {x:.25,lane:.25,color:'#ff4da6',accent:'#ffe2f1',speed:0,distance:0,boost:100,hit:0,progress:0,steer:0}
 ];
 function resizeCanvas(){const rect=canvas.getBoundingClientRect(); if(!rect.width)return; const dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.width/(innerWidth<560?4/3:16/9)*dpr);ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);draw()}
 window.addEventListener('resize',resizeCanvas);
@@ -93,55 +93,78 @@ function drawCar(x,y,color,scale,angle=0){ctx.save();ctx.translate(x,y);ctx.rota
  roundedRect(-13,-31,7,4,1,'#fff6c5');roundedRect(6,-31,7,4,1,'#fff6c5');roundedRect(-13,26,7,4,1,'#ff3f59');roundedRect(6,26,7,4,1,'#ff3f59');
  ctx.strokeStyle=color;ctx.lineWidth=2;ctx.shadowColor=color;ctx.shadowBlur=10;ctx.strokeRect(-17,-32,34,64);ctx.restore()}
 function drawObstacle(o){const p=(o.y-90)/(H-90),scale=.25+p*.95;ctx.save();ctx.translate(o.x,o.y);ctx.scale(scale,scale);ctx.fillStyle='#0008';ctx.beginPath();ctx.ellipse(0,25,28,10,0,0,Math.PI*2);ctx.fill();roundedRect(-20,-25,40,52,8,'#ffb33d','#ffe6a1');poly([[-20,-7],[20,-7],[20,3],[-20,3]],'#222b3a');roundedRect(-13,-20,8,6,2,'#fff4bb');roundedRect(5,-20,8,6,2,'#fff4bb');roundedRect(-13,17,8,5,2,'#ff4a64');roundedRect(5,17,8,5,2,'#ff4a64');ctx.restore()}
+function trackPoint(t,offset=0){
+ const x=480+326*Math.cos(t)+34*Math.sin(3*t)+18*Math.sin(5*t);
+ const y=277+176*Math.sin(t)+20*Math.sin(2*t)+12*Math.sin(4*t);
+ const dx=-326*Math.sin(t)+102*Math.cos(3*t)+90*Math.cos(5*t);
+ const dy=176*Math.cos(t)+40*Math.cos(2*t)+48*Math.cos(4*t);
+ const len=Math.hypot(dx,dy)||1;
+ return {x:x-(dy/len)*offset,y:y+(dx/len)*offset,angle:Math.atan2(dy,dx)};
+}
+function traceTrack(offset=0){
+ ctx.beginPath();
+ for(let i=0;i<=360;i++){const p=trackPoint(i/360*Math.PI*2,offset);if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y)}
+}
 function draw(){
  ctx.clearRect(0,0,W,H);
- // Escenario de carreras 2D visto desde arriba, inspirado en circuitos arcade
- ctx.fillStyle='#397b43';ctx.fillRect(0,0,W,H);
- // franjas de césped
- for(let y=0;y<H;y+=28){ctx.fillStyle=(y/28)%2?'#36743f':'#3d8246';ctx.fillRect(0,y,W,14)}
- // decoración de césped y pequeños arbustos
- for(let i=0;i<46;i++){const x=(i*137+31)%W,y=(i*83+17)%H;ctx.fillStyle=i%2?'#2a6338':'#4b914d';ctx.beginPath();ctx.arc(x,y,5+(i%4),0,Math.PI*2);ctx.fill()}
- // circuito cerrado ancho, forma de circuito con dos curvas
- ctx.beginPath();ctx.moveTo(205,95);ctx.lineTo(755,95);ctx.bezierCurveTo(835,95,865,145,865,205);ctx.lineTo(865,330);ctx.bezierCurveTo(865,405,820,438,750,438);ctx.lineTo(210,438);ctx.bezierCurveTo(130,438,95,395,95,330);ctx.lineTo(95,205);ctx.bezierCurveTo(95,130,135,95,205,95);ctx.closePath();ctx.fillStyle='#d9d9d0';ctx.fill();
- ctx.beginPath();ctx.moveTo(205,111);ctx.lineTo(755,111);ctx.bezierCurveTo(823,111,849,151,849,205);ctx.lineTo(849,330);ctx.bezierCurveTo(849,393,812,422,750,422);ctx.lineTo(210,422);ctx.bezierCurveTo(146,422,111,387,111,330);ctx.lineTo(111,205);ctx.bezierCurveTo(111,145,148,111,205,111);ctx.closePath();ctx.fillStyle='#424b56';ctx.fill();
- // bordes rojo/blanco estilo pista
- ctx.lineWidth=8;ctx.setLineDash([18,14]);ctx.strokeStyle='#f6f2e8';ctx.beginPath();ctx.moveTo(205,101);ctx.lineTo(755,101);ctx.bezierCurveTo(830,101,857,148,857,205);ctx.lineTo(857,330);ctx.bezierCurveTo(857,400,815,430,750,430);ctx.lineTo(210,430);ctx.bezierCurveTo(138,430,103,390,103,330);ctx.lineTo(103,205);ctx.bezierCurveTo(103,140,143,101,205,101);ctx.stroke();ctx.setLineDash([]);
- ctx.lineWidth=3;ctx.strokeStyle='#ff4da6';ctx.beginPath();ctx.moveTo(205,108);ctx.lineTo(755,108);ctx.bezierCurveTo(820,108,850,150,850,205);ctx.lineTo(850,330);ctx.bezierCurveTo(850,390,810,422,750,422);ctx.lineTo(210,422);ctx.bezierCurveTo(150,422,111,385,111,330);ctx.lineTo(111,205);ctx.bezierCurveTo(111,145,150,108,205,108);ctx.stroke();
- // isla central con césped y un pequeño estanque
- ctx.beginPath();ctx.moveTo(235,160);ctx.lineTo(710,160);ctx.bezierCurveTo(755,160,785,190,785,225);ctx.lineTo(785,310);ctx.bezierCurveTo(785,355,755,370,710,370);ctx.lineTo(245,370);ctx.bezierCurveTo(200,370,175,345,175,310);ctx.lineTo(175,225);ctx.bezierCurveTo(175,180,200,160,235,160);ctx.closePath();ctx.fillStyle='#4a9950';ctx.fill();
- ctx.fillStyle='#5aa45b';ctx.beginPath();ctx.ellipse(470,265,180,78,-.08,0,Math.PI*2);ctx.fill();ctx.fillStyle='#4d9650';ctx.beginPath();ctx.ellipse(470,265,135,50,.1,0,Math.PI*2);ctx.fill();
- // línea de salida/meta a través de la recta inferior
- for(let i=0;i<10;i++)for(let j=0;j<2;j++){ctx.fillStyle=(i+j)%2?'#fff':'#20232d';ctx.fillRect(405+i*15,414+j*9,15,9)}
- // señalización discontinua interior del asfalto
- ctx.strokeStyle='#f2e9c9';ctx.lineWidth=2;ctx.setLineDash([14,16]);ctx.beginPath();ctx.moveTo(210,265);ctx.lineTo(750,265);ctx.stroke();ctx.setLineDash([]);
- // vehículos en la recta inferior
- const px1=280+((cars[0].x+.78)/1.56)*230,px2=500+((cars[1].x+.78)/1.56)*180;
- drawCar(px1,386,cars[0].color,.82,0);drawCar(px2,350,cars[1].color,.82,0);
- // rótulos encima de cada piloto
- ctx.font='900 12px system-ui';ctx.textAlign='center';ctx.fillStyle=cars[0].color;ctx.fillText(names[0].toUpperCase(),px1,350);ctx.fillStyle=cars[1].color;ctx.fillText(names[1].toUpperCase(),px2,314);ctx.textAlign='left';
- // panel de carrera arriba
- ctx.fillStyle='#11172beF';ctx.fillRect(0,0,W,66);ctx.fillStyle='#fff';ctx.font='900 14px system-ui';ctx.fillText('SPEED RIVALS  /  CIRCUIT GP',22,23);
- ctx.fillStyle='#34435a';roundedRect(22,37,570,10,5,'#34435a');roundedRect(22,37,570*Math.min(1,elapsed/60),5,3,'#54f6ff');
- ctx.fillStyle='#fff';ctx.font='900 20px system-ui';ctx.fillText(Math.ceil(timeLeft)+' s',620,47);ctx.fillStyle='#54f6ff';ctx.fillText(Math.floor(cars[0].distance)+' m',735,47);ctx.fillStyle='#ff4da6';ctx.fillText(Math.floor(cars[1].distance)+' m',840,47);
- // estado de inicio
- if(!running){ctx.fillStyle='#07102088';ctx.fillRect(0,66,W,474);ctx.textAlign='center';ctx.fillStyle='#fff';ctx.font='900 35px system-ui';ctx.fillText(ended?'CARRERA TERMINADA':'SPEED RIVALS',W/2,250);ctx.fillStyle='#d5ff56';ctx.font='700 13px system-ui';ctx.fillText(ended?'PULSA OTRA CARRERA PARA VOLVER A JUGAR':'CIRCUITO 2D · VISTA SUPERIOR · DOS JUGADORES',W/2,278);ctx.textAlign='left'}
+ // Campo grande con textura y decoraciones
+ ctx.fillStyle='#347641';ctx.fillRect(0,0,W,H);
+ for(let y=0;y<H;y+=24){ctx.fillStyle=(y/24)%2?'#367c40':'#3d8646';ctx.fillRect(0,y,W,12)}
+ for(let i=0;i<85;i++){const x=(i*113+29)%W,y=(i*71+13)%H;ctx.fillStyle=i%2?'#2a6537':'#4d914e';ctx.beginPath();ctx.arc(x,y,3+(i%4),0,Math.PI*2);ctx.fill()}
+ // Pista de carreras grande, irregular y con muchas curvas
+ traceTrack(0);ctx.lineWidth=132;ctx.lineJoin='round';ctx.lineCap='round';ctx.strokeStyle='#f4f0df';ctx.stroke();
+ traceTrack(0);ctx.lineWidth=120;ctx.strokeStyle='#424b56';ctx.stroke();
+ traceTrack(0);ctx.lineWidth=3;ctx.setLineDash([18,17]);ctx.strokeStyle='#e9e1c5';ctx.stroke();ctx.setLineDash([]);
+ // bordes de colores de ambos lados
+ for(const off of [-61,61]){traceTrack(off);ctx.lineWidth=5;ctx.strokeStyle='#f6f2e8';ctx.stroke();traceTrack(off+(off<0?3:-3));ctx.lineWidth=2;ctx.strokeStyle='#ff4da6';ctx.stroke()}
+ // isla central y decoración del parque
+ ctx.fillStyle='#4b9950';ctx.beginPath();ctx.ellipse(480,278,160,76,-.12,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#55a45b';ctx.beginPath();ctx.ellipse(480,278,125,49,.08,0,Math.PI*2);ctx.fill();
+ // árboles alrededor de la pista
+ for(let i=0;i<34;i++){const t=i/34*Math.PI*2,p=trackPoint(t,100+(i%3)*17);ctx.fillStyle=i%2?'#235c35':'#194d30';ctx.beginPath();ctx.arc(p.x,p.y,8+(i%3)*2,0,Math.PI*2);ctx.fill();ctx.fillStyle='#63a953';ctx.beginPath();ctx.arc(p.x-2,p.y-3,5,0,Math.PI*2);ctx.fill()}
+ // línea de salida y meta sobre el circuito
+ const finish=trackPoint(-Math.PI/2,0);ctx.save();ctx.translate(finish.x,finish.y);ctx.rotate(finish.angle);for(let i=0;i<10;i++)for(let j=0;j<2;j++){ctx.fillStyle=(i+j)%2?'#fff':'#171b24';ctx.fillRect(-48+i*10,-64+j*10,10,10)}ctx.restore();
+ // carros avanzan realmente por el circuito, con orientación siguiendo cada curva
+ cars.forEach((car,i)=>{const p=trackPoint(car.progress,car.x*28);drawCar(p.x,p.y,car.color,.76,p.angle+Math.PI/2);ctx.fillStyle=car.color;ctx.font='900 12px system-ui';ctx.textAlign='center';ctx.fillText(names[i].toUpperCase(),p.x,p.y-31);ctx.textAlign='left'});
+ // marcador superior
+ ctx.fillStyle='#10172bea';ctx.fillRect(0,0,W,66);ctx.fillStyle='#fff';ctx.font='900 14px system-ui';ctx.fillText('SPEED RIVALS  /  CIRCUIT GP',22,23);
+ ctx.fillStyle='#34435a';roundedRect(22,37,450,8,4,'#34435a');roundedRect(22,37,450*Math.min(1,elapsed/60),5,3,'#54f6ff');
+ ctx.fillStyle='#fff';ctx.font='900 18px system-ui';ctx.fillText(Math.ceil(timeLeft)+' s',505,47);ctx.fillStyle='#54f6ff';ctx.fillText(names[0].toUpperCase()+' '+Math.floor(cars[0].distance)+' m',590,27);ctx.fillStyle='#ff4da6';ctx.fillText(names[1].toUpperCase()+' '+Math.floor(cars[1].distance)+' m',590,49);
+ // progreso y salida
+ if(!running){ctx.fillStyle='#07102070';ctx.fillRect(0,66,W,474);ctx.textAlign='center';ctx.fillStyle='#fff';ctx.font='900 35px system-ui';ctx.fillText(ended?'CARRERA TERMINADA':'SPEED RIVALS',W/2,250);ctx.fillStyle='#d5ff56';ctx.font='700 13px system-ui';ctx.fillText(ended?'PULSA OTRA CARRERA PARA VOLVER A JUGAR':'CIRCUITO CON CURVAS · DOS PILOTOS · ¡GANA QUIEN RECORRA MÁS!',W/2,278);ctx.textAlign='left'}
 }function update(dt){
- if(!running)return;elapsed+=dt;timeLeft=Math.max(0,60-elapsed);roadOffset+=dt*220;
- const p1left=keys.has('arrowleft')||keys.has('a'),p1right=keys.has('arrowright')||keys.has('d'),p1boost=keys.has('arrowup')||keys.has('w');
- const p2left=keys.has('j'),p2right=keys.has('l'),p2boost=keys.has('i');
- [ [p1left,p1right,p1boost],[p2left,p2right,p2boost] ].forEach((input,i)=>{const c=cars[i];const [left,right,boost]=input;const turbo=boost&&c.boost>0;c.boost=Math.max(0,Math.min(100,c.boost+(turbo?-36:18)*dt));c.x+=(right?1:0)*dt*1.8-(left?1:0)*dt*1.8;c.x=Math.max(-.78,Math.min(.78,c.x));const target=(turbo?210:150)*(c.hit>0?.35:1);c.speed+=(target-c.speed)*Math.min(1,dt*2.3);c.distance+=c.speed*dt/10;c.hit=Math.max(0,c.hit-dt);});
- spawn-=dt;if(spawn<=0){spawn=Math.max(.38,1.15-elapsed*.008);const lane=(Math.random()*1.45-.725);obstacles.push({x:W/2+lane*330,y:85,lane})}
- obstacles.forEach(o=>{const speed=170+elapsed*1.4;o.y+=speed*dt;cars.forEach((c,i)=>{const cx=W/2+c.x*330;if(!o.hit&&o.y>H-145&&o.y<H-65&&Math.abs(cx-o.x)<42){o.hit=true;c.speed*=.28;c.hit=.8;c.distance=Math.max(0,c.distance-10);for(let k=0;k<8;k++)particles.push({x:cx,y:H-90,vx:(Math.random()-.5)*180,vy:-Math.random()*160,life:.45,color:c.color})}})});
- obstacles=obstacles.filter(o=>o.y<H+80&&!o.hit);
- particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=220*dt;p.life-=dt});particles=particles.filter(p=>p.life>0);particles.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life*2);ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,3,3)});ctx.globalAlpha=1;
- document.getElementById('score1').textContent=Math.floor(cars[0].distance);document.getElementById('score2').textContent=Math.floor(cars[1].distance);document.getElementById('timer').textContent=Math.ceil(timeLeft);
+ if(!running)return;
+ elapsed+=dt;timeLeft=Math.max(0,60-elapsed);
+ const inputs=[
+  [keys.has('arrowleft')||keys.has('a'),keys.has('arrowright')||keys.has('d'),keys.has('arrowup')||keys.has('w')],
+  [keys.has('j'),keys.has('l'),keys.has('i')]
+ ];
+ cars.forEach((car,i)=>{
+  const [left,right,boost]=inputs[i],turbo=boost&&car.boost>0;
+  car.boost=Math.max(0,Math.min(100,car.boost+(turbo?-32:20)*dt));
+  // La dirección mueve al piloto entre el interior y exterior de la pista.
+  car.x+=(right?1:0)*dt*1.05-(left?1:0)*dt*1.05;
+  car.x=Math.max(-1.05,Math.min(1.05,car.x));
+  const target=turbo?2.05:1.22;
+  car.speed+=(target-car.speed)*Math.min(1,dt*1.5);
+  if(car.hit>0)car.speed=Math.min(car.speed,.55);
+  car.progress+=car.speed*dt*.36;
+  car.distance+=car.speed*dt*30;
+  car.hit=Math.max(0,car.hit-dt);
+ });
+ // Si se acercan demasiado, el contacto les reduce momentáneamente la velocidad.
+ const p1=trackPoint(cars[0].progress,cars[0].x*28),p2=trackPoint(cars[1].progress,cars[1].x*28);
+ if(Math.hypot(p1.x-p2.x,p1.y-p2.y)<28){cars[0].hit=.25;cars[1].hit=.25;cars[0].speed*=.92;cars[1].speed*=.92}
+ document.getElementById('score1').textContent=Math.floor(cars[0].distance);
+ document.getElementById('score2').textContent=Math.floor(cars[1].distance);
+ document.getElementById('timer').textContent=Math.ceil(timeLeft);
  if(timeLeft<=0)finishRace();
 }
 function frame(t){const dt=Math.min(.035,(t-last)/1000||0);last=t;if(running)update(dt);draw();requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
-function start(){document.getElementById('setup').classList.add('hidden');running=true;ended=false;elapsed=0;timeLeft=60;spawn=.6;obstacles=[];particles=[];cars.forEach(c=>{c.x=c.lane;c.speed=0;c.distance=0;c.boost=100;c.hit=0});document.getElementById('gameState').textContent='RACE LIVE';document.getElementById('startBtn').textContent='Carrera en curso';document.getElementById('startBtn').disabled=true;document.getElementById('status').textContent='¡A correr! Esquiva los coches y activa el turbo.'}
+function start(){document.getElementById('setup').classList.add('hidden');running=true;ended=false;elapsed=0;timeLeft=60;spawn=.6;obstacles=[];particles=[];cars.forEach((c,i)=>{c.x=i===0?-.25:.25;c.speed=1.22;c.distance=0;c.boost=100;c.hit=0;c.progress=-Math.PI/2+(i*.09)});document.getElementById('gameState').textContent='RACE LIVE';document.getElementById('startBtn').textContent='Carrera en curso';document.getElementById('startBtn').disabled=true;document.getElementById('status').textContent='¡A correr! Esquiva los coches y activa el turbo.'}
 function finishRace(){running=false;ended=true;document.getElementById('gameState').textContent='FINISH';document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Otra carrera';const winner=cars[0].distance===cars[1].distance?'Empate':cars[0].distance>cars[1].distance?names[0]:names[1];document.getElementById('status').textContent='Carrera terminada. '+(winner==='Empate'?'¡Empate!':winner+' gana')+'. Guardando resultado si Supabase está conectado…';saveResult(winner)}
-function restart(){running=false;ended=false;document.getElementById('setup').classList.remove('hidden');document.getElementById('gameState').textContent='STANDBY';document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Iniciar carrera';timeLeft=60;elapsed=0;cars.forEach(c=>{c.distance=0;c.speed=0;c.x=c.lane});obstacles=[];draw()}
+function restart(){running=false;ended=false;document.getElementById('setup').classList.remove('hidden');document.getElementById('gameState').textContent='STANDBY';document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Iniciar carrera';timeLeft=60;elapsed=0;cars.forEach((c,i)=>{c.distance=0;c.speed=0;c.x=i===0?-.25:.25;c.progress=-Math.PI/2+(i*.09);c.hit=0;c.boost=100});obstacles=[];draw()}
 document.getElementById('confirmBtn').addEventListener('click',()=>{names[0]=document.getElementById('name1').value.trim()||'AZUL';names[1]=document.getElementById('name2').value.trim()||'ROSA';document.getElementById('name1Display').textContent=names[0].toUpperCase();document.getElementById('name2Display').textContent=names[1].toUpperCase();start()});
 document.getElementById('startBtn').addEventListener('click',()=>{if(ended)restart();else if(!running){document.getElementById('setup').classList.remove('hidden')}});
 document.getElementById('resetBtn').addEventListener('click',restart);
