@@ -122,6 +122,43 @@ function draw(){
  ctx.fillStyle='#55a45b';ctx.beginPath();ctx.ellipse(480,278,137,55,.08,0,Math.PI*2);ctx.fill();
  // árboles alrededor de la pista
  for(let i=0;i<34;i++){const t=i/34*Math.PI*2,p=trackPoint(t,100+(i%3)*17);ctx.fillStyle=i%2?'#235c35':'#194d30';ctx.beginPath();ctx.arc(p.x,p.y,8+(i%3)*2,0,Math.PI*2);ctx.fill();ctx.fillStyle='#63a953';ctx.beginPath();ctx.arc(p.x-2,p.y-3,5,0,Math.PI*2);ctx.fill()}
+ // Infraestructura visual del circuito: boxes, gradas, muros y señalización (vista 2D)
+ // Edificio de boxes y carril de servicio en la zona inferior derecha
+ ctx.save();
+ roundedRect(650,438,235,58,7,'#182638','#91a6b7');
+ roundedRect(663,447,210,31,4,'#293d50','#607b91');
+ for(let i=0;i<6;i++){
+   const bx=670+i*33;
+   roundedRect(bx,451,27,22,3,i%2?'#101b2a':'#d8e4eb','#52697d');
+   ctx.fillStyle=i%2?'#ff4da6':'#54f6ff';ctx.fillRect(bx+3,454,21,3);
+   ctx.fillStyle='#cbd8e6';ctx.font='700 7px system-ui';ctx.textAlign='center';ctx.fillText('BOX '+(i+1),bx+13,468);
+ }
+ ctx.fillStyle='#f3f6fa';ctx.font='900 10px system-ui';ctx.textAlign='center';ctx.fillText('PIT LANE',767,490);
+ // Gradas con filas de asientos en el sector superior izquierdo
+ roundedRect(28,82,115,48,5,'#26384c','#9fb2c6');
+ for(let row=0;row<4;row++)for(let col=0;col<12;col++){
+   ctx.fillStyle=(row+col)%3===0?'#ff4da6':(row+col)%2?'#54f6ff':'#d9e6ef';
+   ctx.fillRect(35+col*8.5,88+row*9,5,5);
+ }
+ ctx.fillStyle='#f5f8ff';ctx.font='900 8px system-ui';ctx.textAlign='center';ctx.fillText('SPEED RIVALS GRANDSTAND',86,139);
+ // Vallas de seguridad y postes alrededor de sectores del circuito
+ for(let i=0;i<15;i++){
+   const p=trackPoint(-Math.PI*.78+i*.035,91);
+   ctx.fillStyle='#e8edf2';ctx.fillRect(p.x-3,p.y-3,6,6);
+   ctx.fillStyle=i%2?'#ff4da6':'#54f6ff';ctx.fillRect(p.x-3,p.y-3,6,2);
+ }
+ for(let i=0;i<13;i++){
+   const p=trackPoint(Math.PI*.20+i*.035,91);
+   ctx.fillStyle='#e8edf2';ctx.fillRect(p.x-3,p.y-3,6,6);
+   ctx.fillStyle=i%2?'#ff4da6':'#54f6ff';ctx.fillRect(p.x-3,p.y-3,6,2);
+ }
+ // Carteles de curva y paneles publicitarios
+ const signs=[{x:105,y:250,t:'BRAKE'},{x:830,y:180,t:'TURBO'},{x:710,y:70,t:'RIVALS GP'}];
+ signs.forEach((s,i)=>{
+   roundedRect(s.x-28,s.y-10,56,20,4,'#111c2b','#71859a');
+   ctx.fillStyle=i===1?'#54f6ff':'#ff4da6';ctx.font='900 8px system-ui';ctx.textAlign='center';ctx.fillText(s.t,s.x,s.y+3);
+ });
+ ctx.restore();
  // línea de salida y meta sobre el circuito
  const finish=trackPoint(-Math.PI/2,0);ctx.save();ctx.translate(finish.x,finish.y);ctx.rotate(finish.angle);for(let i=0;i<10;i++)for(let j=0;j<2;j++){ctx.fillStyle=(i+j)%2?'#fff':'#171b24';ctx.fillRect(-48+i*10,-64+j*10,10,10)}ctx.restore();
  // carros avanzan realmente por el circuito, con orientación siguiendo cada curva
