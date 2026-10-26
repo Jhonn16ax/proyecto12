@@ -196,14 +196,16 @@ function draw(){
  const car=cars[0];
  const left=keys.has('arrowleft')||keys.has('a');
  const right=keys.has('arrowright')||keys.has('d');
- const boost=keys.has('arrowup')||keys.has('w'),turbo=boost&&car.boost>0;
+ const accelerate=keys.has('arrowup')||keys.has('w');
+ const turbo=accelerate&&car.boost>0;
  car.boost=Math.max(0,Math.min(100,car.boost+(turbo?-32:20)*dt));
+ // Los controles de dirección también hacen que el coche avance.
+ // Sin pulsar ningún control, permanece completamente quieto.
+ const moving=left||right||accelerate;
  car.x+=(right?1:0)*dt*1.05-(left?1:0)*dt*1.05;
  car.x=Math.max(-1.05,Math.min(1.05,car.x));
- // El coche no avanza solo: W o flecha arriba son el acelerador.
- // Sin esa tecla, se detiene y no suma distancia.
- car.speed=boost? (turbo?2.05:1.22) : 0;
- if(boost){
+ car.speed=moving?(turbo?2.05:1.22):0;
+ if(moving){
    car.progress+=car.speed*dt*.36;
    car.distance+=car.speed*dt*30;
  }
@@ -233,7 +235,7 @@ function syncPlayer(dt){
 }
 function frame(t){const dt=Math.min(.035,(t-last)/1000||0);last=t;if(running)update(dt);syncPlayer(dt);draw();requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
-function start(){document.getElementById('setup').classList.add('hidden');running=true;ended=false;elapsed=0;timeLeft=60;cars[0].x=-.25;cars[0].speed=0;cars[0].distance=0;cars[0].boost=100;cars[0].hit=0;cars[0].progress=-Math.PI/2;document.getElementById('gameState').textContent='RACE LIVE';document.getElementById('startBtn').textContent='Carrera en curso';document.getElementById('startBtn').disabled=true;document.getElementById('status').textContent=remoteOnline?'¡Rival conectado! Compite usando las flechas o A/D y W para turbo.':'Mantén W o ↑ para avanzar; A/D o ←/→ para girar. Eres el único coche hasta que se conecte otro jugador.'}
+function start(){document.getElementById('setup').classList.add('hidden');running=true;ended=false;elapsed=0;timeLeft=60;cars[0].x=-.25;cars[0].speed=0;cars[0].distance=0;cars[0].boost=100;cars[0].hit=0;cars[0].progress=-Math.PI/2;document.getElementById('gameState').textContent='RACE LIVE';document.getElementById('startBtn').textContent='Carrera en curso';document.getElementById('startBtn').disabled=true;document.getElementById('status').textContent=remoteOnline?'¡Rival conectado! Compite usando las flechas o A/D y W para turbo.':'Mantén cualquier control de dirección o W/↑ para mover el coche. Si no pulsas controles, se queda quieto.'}
 function finishRace(){running=false;ended=true;document.getElementById('gameState').textContent='FINISH';document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Otra carrera';const winner=cars[0].distance===cars[1].distance?'Empate':cars[0].distance>cars[1].distance?names[0]:names[1];document.getElementById('status').textContent='Carrera terminada. '+(winner==='Empate'?'¡Empate!':winner+' gana')+'. Guardando resultado si Supabase está conectado…';saveResult(winner)}
 function restart(){running=false;ended=false;document.getElementById('setup').classList.remove('hidden');document.getElementById('gameState').textContent='STANDBY';document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Iniciar carrera';timeLeft=60;elapsed=0;cars[0].distance=0;cars[0].speed=0;cars[0].x=-.25;cars[0].progress=-Math.PI/2;cars[0].hit=0;cars[0].boost=100;draw()}
 document.getElementById('confirmBtn').addEventListener('click',()=>{names[0]=document.getElementById('name1').value.trim()||'AZUL';names[1]=document.getElementById('name2').value.trim()||'ROSA';document.getElementById('name1Display').textContent=names[0].toUpperCase();document.getElementById('name2Display').textContent=names[1].toUpperCase();start()});
