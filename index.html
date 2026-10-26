@@ -42,14 +42,14 @@ button,input{font:inherit}button{cursor:pointer;border:0;font-weight:900;letter-
 <div class="player-control"><strong><i class="dot" style="background:var(--cyan)"></i> PILOTO 01 · AZUL</strong><p>Mover: <kbd>A</kbd> <kbd>D</kbd> o <kbd>←</kbd> <kbd>→</kbd><br>Turbo: <kbd>W</kbd> / <kbd>↑</kbd></p></div>
 <div class="player-control hidden" id="player2Controls"><strong><i class="dot" style="background:var(--pink)"></i> RIVAL CONECTADO</strong><p>El otro jugador controla su coche desde su propio navegador.</p></div>
 </div>
-<div class="drive-pad"><button id="p1left">◀ P1 IZQUIERDA</button><button id="p1right">P1 DERECHA ▶</button></div><div class="drive-pad"><button id="p2left">◀ P2 IZQUIERDA</button><button id="p2right">P2 DERECHA ▶</button></div><div class="actions"><button class="primary" id="startBtn">▶ Iniciar carrera</button><button class="secondary" id="resetBtn">Reiniciar</button></div>
+<div class="drive-pad"><button id="p1left">◀ P1 IZQUIERDA</button><button id="p1right">P1 DERECHA ▶</button></div><div class="drive-pad hidden" id="player2Pad"><button id="p2left">◀ RIVAL IZQUIERDA</button><button id="p2right">RIVAL DERECHA ▶</button></div><div class="actions"><button class="primary" id="startBtn">▶ Iniciar carrera</button><button class="secondary" id="resetBtn">Reiniciar</button></div>
 <div class="status" id="status" aria-live="polite">Listos para competir. Esquiva el tráfico y usa el turbo en las rectas.</div>
 </div>
 </section>
 <aside class="side">
 <section class="side-card"><h3 class="side-title">EN CARRERA <span class="subtle">EN VIVO</span></h3>
 <div class="score-row"><div class="driver"><div class="avatar" style="color:var(--cyan)">P1</div><div><b id="name1Display">AZUL</b><small>Distancia recorrida</small></div></div><div class="points" id="score1">0</div></div>
-<div class="score-row"><div class="driver"><div class="avatar" style="color:var(--pink)">P2</div><div><b id="name2Display">ROSA</b><small>Distancia recorrida</small></div></div><div class="points" id="score2">0</div></div>
+<div class="score-row"><div class="driver"><div class="avatar" style="color:var(--pink)">P2</div><div><b id="name2Display">ESPERANDO…</b><small>Rival conectado</small></div></div><div class="points" id="score2">—</div></div>
 <div class="score-row"><span class="subtle">TIEMPO RESTANTE</span><div class="points" id="timer">60</div></div>
 </section>
 <section class="side-card"><h3 class="side-title">HALL OF FAME <span class="subtle">TOP 5</span></h3><div id="leaderboard" class="leaderboard"><div class="empty">El ranking compartido aparecerá cuando conectes Supabase.</div></div><div class="status" id="dbStatus">Conecta Supabase para encontrar a otro piloto.</div></section>
@@ -225,6 +225,7 @@ function syncPlayer(dt){
    document.getElementById('score2').textContent='—';
    document.getElementById('name2Display').textContent='ESPERANDO…';
    document.getElementById('player2Controls').classList.add('hidden');
+   document.getElementById('player2Pad').classList.add('hidden');
  }
 }
 function frame(t){const dt=Math.min(.035,(t-last)/1000||0);last=t;if(running)update(dt);syncPlayer(dt);draw();requestAnimationFrame(frame)}
@@ -252,6 +253,7 @@ function connectLiveRace(){
    document.getElementById('name2Display').textContent=String(payload.name||'RIVAL').toUpperCase();
    document.getElementById('score2').textContent=Math.floor(Number(payload.distance)||0);
    document.getElementById('player2Controls').classList.remove('hidden');
+   document.getElementById('player2Pad').classList.remove('hidden');
    document.getElementById('dbStatus').textContent='¡Rival conectado! Su coche aparece en tu pista.';
    document.getElementById('status').textContent='Rival conectado: '+String(payload.name||'RIVAL')+'. Compitan desde dos navegadores.';
  });
