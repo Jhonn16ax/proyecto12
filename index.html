@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Speed Rivals — Neon Circuit</title>
+<meta name="description" content="Compite con un amigo en Speed Rivals, un arcade de carreras para dos jugadores.">
+<style>
+:root{--cyan:#54f6ff;--pink:#ff4da6;--lime:#d5ff56;--panel:rgba(7,13,29,.78);--line:rgba(132,202,255,.22)}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#050816;color:#f5f7ff;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Arial,sans-serif}
+body{background:radial-gradient(ellipse at 50% -20%,#172c55 0,transparent 55%),#050816;overflow-x:hidden}
+button,input{font:inherit}button{cursor:pointer;border:0;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+.shell{max-width:1380px;margin:auto;padding:22px clamp(12px,3vw,34px) 32px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}
+.brand{display:flex;align-items:center;gap:12px}.mark{width:48px;height:48px;border:1px solid #4df5ff;border-radius:15px;display:grid;place-items:center;color:var(--cyan);font-size:24px;box-shadow:0 0 24px #20c9ff35;background:#0b1830}
+.eyebrow{font-size:10px;letter-spacing:.28em;color:var(--cyan);font-weight:900}.brand h1{font-size:clamp(20px,3vw,31px);margin:2px 0 0;letter-spacing:-.06em}.brand h1 span{color:var(--cyan)}
+.pill{font-size:11px;color:#b6c6e5;border:1px solid var(--line);border-radius:100px;padding:9px 13px;background:#0b1327}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:18px}
+.game-card,.side-card{background:linear-gradient(145deg,rgba(19,31,59,.9),rgba(7,12,28,.94));border:1px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:0 20px 70px #0004}
+.game-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line);gap:12px}
+.game-head h2{font-size:13px;letter-spacing:.14em;margin:0}.live{color:var(--lime);font-size:10px;font-weight:900;letter-spacing:.15em}.live:before{content:"";display:inline-block;width:7px;height:7px;background:var(--lime);border-radius:50%;margin-right:8px;box-shadow:0 0 12px var(--lime)}
+#game{display:block;width:100%;aspect-ratio:16/9;background:#09152a}
+.below{padding:17px 20px 20px}.controls{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.player-control{padding:13px;border:1px solid var(--line);border-radius:13px;background:#0a1226}
+.player-control strong{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.1em;margin-bottom:7px}.dot{width:8px;height:8px;border-radius:50%;display:inline-block}.player-control p{margin:0;color:#9eacc8;font-size:12px;line-height:1.6}.player-control kbd{background:#1a2948;border:1px solid #3a4b70;border-radius:5px;padding:2px 5px;color:#fff;font-size:10px}
+.actions{display:flex;gap:10px;margin-top:15px;flex-wrap:wrap}.primary{background:linear-gradient(100deg,#51f1ff,#83fbdb);color:#061021;padding:13px 20px;border-radius:11px;box-shadow:0 6px 24px #35dff52a}.secondary{background:#121e38;color:#dbe8ff;border:1px solid #2a3d61;padding:12px 16px;border-radius:11px}
+.side{display:flex;flex-direction:column;gap:15px}.side-card{padding:18px}.side-title{display:flex;justify-content:space-between;align-items:center;margin:0 0 16px;font-size:11px;letter-spacing:.16em}.subtle{font-size:10px;color:#8395b8;letter-spacing:.08em}
+.score-row{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid #ffffff0e}.score-row:last-child{border:0}.driver{display:flex;align-items:center;gap:10px}.avatar{width:35px;height:35px;border-radius:10px;display:grid;place-items:center;font-size:12px;font-weight:1000;background:#152a43}.driver small{display:block;color:#8494b6;font-size:10px;margin-top:3px}.points{font-size:20px;font-weight:950;font-variant-numeric:tabular-nums}.leaderboard{font-size:12px}.leader-item{display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid #ffffff0e}.rank{color:var(--cyan);width:18px;font-weight:900}.leader-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.leader-time{color:#a9b8d6;font-variant-numeric:tabular-nums}.empty{color:#8190ae;line-height:1.6;font-size:12px}.status{font-size:11px;color:#8fa1c4;margin-top:10px;line-height:1.5}.footer{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#61718f;font-size:10px;margin:17px 3px 0;letter-spacing:.05em}
+.overlay{position:fixed;inset:0;background:#030714c9;backdrop-filter:blur(9px);display:grid;place-items:center;padding:20px;z-index:5}.modal{width:min(490px,100%);background:linear-gradient(150deg,#142342,#070d1d);border:1px solid #385274;border-radius:24px;padding:clamp(22px,5vw,36px);box-shadow:0 30px 100px #0009}.modal .eyebrow{margin-bottom:10px}.modal h2{font-size:clamp(28px,5vw,42px);letter-spacing:-.06em;margin:0 0 10px;line-height:1}.modal h2 span{color:var(--cyan)}.modal p{color:#a8b6d2;line-height:1.65;font-size:13px}.name-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}.name-grid label{font-size:10px;letter-spacing:.1em;color:#a8b6d2}.name-grid input{display:block;width:100%;margin-top:7px;background:#080f20;border:1px solid #344768;border-radius:9px;color:white;padding:12px;outline:none}.name-grid input:focus{border-color:var(--cyan)}.modal-actions{display:flex;gap:10px;flex-wrap:wrap}.hidden{display:none!important}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.side{display:grid;grid-template-columns:1fr 1fr}.side-card:last-child{grid-column:1/-1}}
+@media(max-width:560px){.top{align-items:flex-start}.pill{display:none}.side{display:flex}.controls{grid-template-columns:1fr}.game-head{padding:13px}.below{padding:13px}.name-grid{grid-template-columns:1fr}.footer{line-height:1.7}#game{aspect-ratio:4/3}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="top"><div class="brand"><div class="mark">SR</div><div><div class="eyebrow">ARCADE RACING / 01</div><h1>SPEED <span>RIVALS</span></h1></div></div><div class="pill">NEON CIRCUIT · LOCAL DUEL</div></header>
+<main class="layout">
+<section class="game-card">
+<div class="game-head"><h2>01 / NEON HIGHWAY</h2><div class="live" id="gameState">STANDBY</div></div>
+<canvas id="game" width="960" height="540" aria-label="Juego de carreras en carretera 3D"></canvas>
+<div class="below">
+<div class="controls">
+<div class="player-control"><strong><i class="dot" style="background:var(--cyan)"></i> PILOTO 01 · AZUL</strong><p>Mover: <kbd>A</kbd> <kbd>D</kbd> o <kbd>←</kbd> <kbd>→</kbd><br>Turbo: <kbd>W</kbd> / <kbd>↑</kbd></p></div>
+<div class="player-control"><strong><i class="dot" style="background:var(--pink)"></i> PILOTO 02 · ROSA</strong><p>Mover: <kbd>J</kbd> <kbd>L</kbd><br>Turbo: <kbd>I</kbd></p></div>
+</div>
+<div class="actions"><button class="primary" id="startBtn">▶ Iniciar carrera</button><button class="secondary" id="resetBtn">Reiniciar</button></div>
+<div class="status" id="status" aria-live="polite">Listos para competir. Esquiva el tráfico y usa el turbo en las rectas.</div>
+</div>
+</section>
+<aside class="side">
+<section class="side-card"><h3 class="side-title">EN CARRERA <span class="subtle">EN VIVO</span></h3>
+<div class="score-row"><div class="driver"><div class="avatar" style="color:var(--cyan)">P1</div><div><b id="name1Display">AZUL</b><small>Distancia recorrida</small></div></div><div class="points" id="score1">0</div></div>
+<div class="score-row"><div class="driver"><div class="avatar" style="color:var(--pink)">P2</div><div><b id="name2Display">ROSA</b><small>Distancia recorrida</small></div></div><div class="points" id="score2">0</div></div>
+<div class="score-row"><span class="subtle">TIEMPO RESTANTE</span><div class="points" id="timer">60</div></div>
+</section>
+<section class="side-card"><h3 class="side-title">HALL OF FAME <span class="subtle">TOP 5</span></h3><div id="leaderboard" class="leaderboard"><div class="empty">El ranking compartido aparecerá cuando conectes Supabase.</div></div><div class="status" id="dbStatus">Modo demo: base de datos aún sin configurar.</div></section>
+<section class="side-card"><h3 class="side-title">OBJETIVO</h3><p class="empty">Sobrevive 60 segundos. Cada tramo suma puntos; los choques te hacen perder velocidad. Quien llegue más lejos gana.</p></section>
+</aside>
+</main>
+<footer class="footer"><span>SPEED RIVALS © 2026 · BUILT FOR THE TRACK</span><span>LOCAL MULTIPLAYER · SUPABASE READY</span></footer>
+</div>
+<div class="overlay" id="setup">
+<div class="modal"><div class="eyebrow">NEON CIRCUIT / RACE SETUP</div><h2>¿QUIÉN DOMINA<br>LA <span>PISTA?</span></h2><p>Escribe los nombres de los dos pilotos y prepárate para la carrera. Jueguen en el mismo teclado.</p>
+<div class="name-grid"><label>PILOTO 01<input id="name1" maxlength="16" value="AZUL" autocomplete="off"></label><label>PILOTO 02<input id="name2" maxlength="16" value="ROSA" autocomplete="off"></label></div>
+<div class="modal-actions"><button class="primary" id="confirmBtn">Entrar a la pista →</button></div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* Supabase: pega aquí SOLO la URL y la publishable key del proyecto. Nunca uses una secret key en el navegador. */
+const SUPABASE_URL = "PEGA_AQUI_LA_URL_DE_SUPABASE";
+const SUPABASE_PUBLISHABLE_KEY = "PEGA_AQUI_LA_PUBLISHABLE_KEY";
+let db = null;
+if (window.supabase && SUPABASE_URL.startsWith("https://") && SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_")) {
+  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+}
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=960,H=540,keys=new Set();
+let running=false,ended=false,last=0,elapsed=0,timeLeft=60,spawn=0,roadOffset=0,obstacles=[],particles=[];
+let names=['AZUL','ROSA'];
+const cars=[
+ {x:-.29,lane:-.29,color:'#54f6ff',accent:'#e4ffff',speed:0,distance:0,boost:100,hit:0},
+ {x:.29,lane:.29,color:'#ff4da6',accent:'#ffe2f1',speed:0,distance:0,boost:100,hit:0}
+];
+function resizeCanvas(){const rect=canvas.getBoundingClientRect(); if(!rect.width)return; const dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.width/(innerWidth<560?4/3:16/9)*dpr);ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);draw()}
+window.addEventListener('resize',resizeCanvas);
+function roundedRect(x,y,w,h,r,fill,stroke){ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.stroke()}}
+function poly(points,fill){ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);ctx.closePath();ctx.fillStyle=fill;ctx.fill()}
+function roadEdges(y){const p=(y-80)/(H-80);const half=70+p*385;return [W/2-half,W/2+half,p]}
+function drawCar(x,y,color,scale,lean=0){ctx.save();ctx.translate(x,y);ctx.rotate(lean);ctx.scale(scale,scale);
+ // shadow
+ ctx.fillStyle='#0009';ctx.beginPath();ctx.ellipse(0,7,28,48,0,0,Math.PI*2);ctx.fill();
+ // tires
+ roundedRect(-30,-27,12,31,4,'#080b12');roundedRect(18,-27,12,31,4,'#080b12');roundedRect(-30,17,12,28,4,'#080b12');roundedRect(18,17,12,28,4,'#080b12');
+ // bodywork
+ poly([[-24,36],[-28,15],[-25,-24],[-15,-39],[15,-39],[25,-24],[28,15],[24,36],[14,43],[-14,43]],color);
+ poly([[-18,-17],[-12,-32],[12,-32],[18,-17],[14,3],[-14,3]],'#17253b');
+ poly([[-17,-15],[-10,-29],[0,-30],[0,-15]],'#7cefff77');poly([[2,-29],[10,-28],[16,-15],[2,-15]],'#fff9');
+ roundedRect(-19,10,38,12,3,'#121a2b');roundedRect(-19,29,9,5,2,'#ff4e60');roundedRect(10,29,9,5,2,'#ff4e60');
+ ctx.shadowColor=color;ctx.shadowBlur=16;ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-23,8);ctx.lineTo(-24,23);ctx.lineTo(-17,35);ctx.moveTo(23,8);ctx.lineTo(24,23);ctx.lineTo(17,35);ctx.stroke();ctx.restore()}
+function drawObstacle(o){const p=(o.y-90)/(H-90),scale=.25+p*.95;ctx.save();ctx.translate(o.x,o.y);ctx.scale(scale,scale);ctx.fillStyle='#0008';ctx.beginPath();ctx.ellipse(0,25,28,10,0,0,Math.PI*2);ctx.fill();roundedRect(-20,-25,40,52,8,'#ffb33d','#ffe6a1');poly([[-20,-7],[20,-7],[20,3],[-20,3]],'#222b3a');roundedRect(-13,-20,8,6,2,'#fff4bb');roundedRect(5,-20,8,6,2,'#fff4bb');roundedRect(-13,17,8,5,2,'#ff4a64');roundedRect(5,17,8,5,2,'#ff4a64');ctx.restore()}
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#101c3e');sky.addColorStop(.55,'#23335a');sky.addColorStop(1,'#11182d');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+ // distant city skyline
+ for(let i=0;i<32;i++){let x=i*32-((roadOffset*.12)%32),bh=24+(Math.sin(i*12.3)*.5+.5)*80;ctx.fillStyle=i%2?'#101c37':'#162440';ctx.fillRect(x,210-bh,24,bh);for(let j=0;j<3;j++){ctx.fillStyle=i%3?'#59e6ff33':'#ff5baf44';ctx.fillRect(x+5+j*6,218-bh,2,4)}}
+ // horizon glow and ground
+ const glow=ctx.createRadialGradient(W/2,245,5,W/2,245,420);glow.addColorStop(0,'#45d7ff33');glow.addColorStop(1,'#11162a00');ctx.fillStyle=glow;ctx.fillRect(0,170,W,H-170);
+ ctx.fillStyle='#101c2c';ctx.fillRect(0,270,W,H-270);
+ // road trapezoid
+ const eTop=roadEdges(80),eBot=roadEdges(H);poly([[eTop[0],80],[eTop[1],80],[eBot[1],H],[eBot[0],H]],'#252c3b');
+ // roadside cyan/pink edge lines
+ ctx.lineWidth=4;ctx.strokeStyle='#54f6ff';ctx.shadowColor='#54f6ff';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(eTop[0],80);ctx.lineTo(eBot[0],H);ctx.stroke();ctx.shadowColor='#ff4da6';ctx.strokeStyle='#ff4da6';ctx.beginPath();ctx.moveTo(eTop[1],80);ctx.lineTo(eBot[1],H);ctx.stroke();ctx.shadowBlur=0;
+ // road lane markings
+ for(let i=0;i<18;i++){const t=((i/18+(roadOffset*.0018)%1)%1),y=80+t*t*(H-80),half=70+t*385;for(const lane of [-.5,0,.5]){if(lane===0)continue;const x=W/2+lane*half;const seg=5+t*25;ctx.fillStyle='#e8f2ffb0';ctx.fillRect(x-2,y,4,seg)}}
+ // side lights
+ for(let i=0;i<15;i++){let t=((i/15+(roadOffset*.002)%1)%1),y=80+t*t*(H-80),half=70+t*385;ctx.fillStyle=i%2?'#ff4da6':'#54f6ff';ctx.globalAlpha=.25+t*.7;ctx.fillRect(W/2-half-15,y,4,3+t*8);ctx.fillRect(W/2+half+11,y,4,3+t*8)}ctx.globalAlpha=1;
+ obstacles.sort((a,b)=>a.y-b.y).forEach(drawObstacle);
+ cars.forEach((c,i)=>{const px=W/2+c.x*roadEdges(H)[2]*1.25*1.6;drawCar(px,H-78,c.color,1.05,c.hit>0?Math.sin(c.hit*20)*.08:(c.x-c.lane)*.05)});
+ // HUD
+ roundedRect(22,20,210,58,12,'#050a18c9','#ffffff1c');ctx.fillStyle='#91a5c9';ctx.font='900 10px system-ui';ctx.fillText('NEON CIRCUIT',36,39);ctx.fillStyle='#fff';ctx.font='900 21px system-ui';ctx.fillText(String(Math.ceil(timeLeft)).padStart(2,'0')+'s',36,64);ctx.fillStyle='#54f6ff';ctx.fillRect(96,56,100*(timeLeft/60),4);
+ roundedRect(W-224,20,202,58,12,'#050a18c9','#ffffff1c');ctx.fillStyle='#54f6ff';ctx.font='900 10px system-ui';ctx.fillText(names[0].toUpperCase(),W-209,39);ctx.fillStyle='#fff';ctx.font='900 18px system-ui';ctx.fillText(Math.floor(cars[0].distance)+' m',W-209,63);ctx.fillStyle='#ff4da6';ctx.fillText(names[1].toUpperCase(),W-115,39);ctx.fillStyle='#fff';ctx.fillText(Math.floor(cars[1].distance)+' m',W-115,63);
+ if(!running){ctx.fillStyle='#03081666';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle='#fff';ctx.font='900 37px system-ui';ctx.fillText(ended?'RACE COMPLETE':'READY TO RACE',W/2,H/2-10);ctx.fillStyle='#54f6ff';ctx.font='700 13px system-ui';ctx.fillText(ended?'PRESS RESTART TO RACE AGAIN':'TWO DRIVERS · ONE TRACK · NO MERCY',W/2,H/2+22);ctx.textAlign='left'}
+}
+function update(dt){
+ if(!running)return;elapsed+=dt;timeLeft=Math.max(0,60-elapsed);roadOffset+=dt*220;
+ const p1left=keys.has('arrowleft')||keys.has('a'),p1right=keys.has('arrowright')||keys.has('d'),p1boost=keys.has('arrowup')||keys.has('w');
+ const p2left=keys.has('j'),p2right=keys.has('l'),p2boost=keys.has('i');
+ [ [p1left,p1right,p1boost],[p2left,p2right,p2boost] ].forEach((input,i)=>{const c=cars[i];const [left,right,boost]=input;const turbo=boost&&c.boost>0;c.boost=Math.max(0,Math.min(100,c.boost+(turbo?-36:18)*dt));c.x+=(right?1:0)*dt*1.12-(left?1:0)*dt*1.12;c.x=Math.max(-.78,Math.min(.78,c.x));const target=(turbo?210:150)*(c.hit>0?.35:1);c.speed+=(target-c.speed)*Math.min(1,dt*2.3);c.distance+=c.speed*dt/10;c.hit=Math.max(0,c.hit-dt);});
+ spawn-=dt;if(spawn<=0){spawn=Math.max(.38,1.15-elapsed*.008);const lane=(Math.random()*1.4-.7);obstacles.push({x:W/2+lane*400,y:85, lane})}
+ obstacles.forEach(o=>{const speed=170+elapsed*1.4;o.y+=speed*dt;cars.forEach((c,i)=>{const cx=W/2+c.x*roadEdges(H)[2]*1.25*1.6;if(!o.hit&&o.y>H-145&&o.y<H-65&&Math.abs(cx-o.x)<42){o.hit=true;c.speed*=.28;c.hit=.8;c.distance=Math.max(0,c.distance-10);for(let k=0;k<8;k++)particles.push({x:cx,y:H-90,vx:(Math.random()-.5)*180,vy:-Math.random()*160,life:.45,color:c.color})}})});
+ obstacles=obstacles.filter(o=>o.y<H+80&&!o.hit);
+ particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=220*dt;p.life-=dt});particles=particles.filter(p=>p.life>0);particles.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life*2);ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,3,3)});ctx.globalAlpha=1;
+ document.getElementById('score1').textContent=Math.floor(cars[0].distance);document.getElementById('score2').textContent=Math.floor(cars[1].distance);document.getElementById('timer').textContent=Math.ceil(timeLeft);
+ if(timeLeft<=0)finishRace();
+}
+function frame(t){const dt=Math.min(.035,(t-last)/1000||0);last=t;if(running)update(dt);draw();requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+function start(){document.getElementById('setup').classList.add('hidden');running=true;ended=false;elapsed=0;timeLeft=60;spawn=.6;obstacles=[];particles=[];cars.forEach(c=>{c.x=c.lane;c.speed=0;c.distance=0;c.boost=100;c.hit=0});document.getElementById('gameState').textContent='RACE LIVE';document.getElementById('startBtn').textContent='Carrera en curso';document.getElementById('startBtn').disabled=true;document.getElementById('status').textContent='¡A correr! Esquiva los coches y activa el turbo.'}
+function finishRace(){running=false;ended=true;document.getElementById('gameState').textContent='FINISH';document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Otra carrera';const winner=cars[0].distance===cars[1].distance?'Empate':cars[0].distance>cars[1].distance?names[0]:names[1];document.getElementById('status').textContent='Carrera terminada. '+(winner==='Empate'?'¡Empate!':winner+' gana')+'. Guardando resultado si Supabase está conectado…';saveResult(winner)}
+function restart(){running=false;ended=false;document.getElementById('setup').classList.remove('hidden');document.getElementById('gameState').textContent='STANDBY';document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Iniciar carrera';timeLeft=60;elapsed=0;cars.forEach(c=>{c.distance=0;c.speed=0;c.x=c.lane});obstacles=[];draw()}
+document.getElementById('confirmBtn').addEventListener('click',()=>{names[0]=document.getElementById('name1').value.trim()||'AZUL';names[1]=document.getElementById('name2').value.trim()||'ROSA';document.getElementById('name1Display').textContent=names[0].toUpperCase();document.getElementById('name2Display').textContent=names[1].toUpperCase();start()});
+document.getElementById('startBtn').addEventListener('click',()=>{if(ended)restart();else if(!running){document.getElementById('setup').classList.remove('hidden')}});
+document.getElementById('resetBtn').addEventListener('click',restart);
+window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowleft','arrowright','arrowup',' '].includes(k))e.preventDefault();keys.add(k)});
+window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+async function loadLeaderboard(){if(!db){document.getElementById('dbStatus').textContent='Pendiente: configura Supabase para ranking compartido.';return}const {data,error}=await db.from('race_results').select('winner, distance, created_at').order('distance',{ascending:false}).limit(5);if(error){document.getElementById('dbStatus').textContent='Supabase conectado, revisa la tabla/políticas: '+error.message;return}document.getElementById('leaderboard').innerHTML=data.length?data.map((r,i)=>'<div class="leader-item"><span class="rank">0'+(i+1)+'</span><span class="leader-name">'+escapeHtml(r.winner)+'</span><span class="leader-time">'+Math.round(r.distance)+' m</span></div>').join(''):'<div class="empty">Todavía no hay carreras guardadas.</div>';document.getElementById('dbStatus').textContent='Ranking sincronizado con la base de datos.'}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function saveResult(winner){if(!db){document.getElementById('dbStatus').textContent='Resultado solo en esta partida. Configura Supabase para compartirlo entre dispositivos.';return}const maxDistance=Math.max(...cars.map(c=>Math.round(c.distance)));const {error}=await db.from('race_results').insert({winner, distance:maxDistance, player_one:names[0], player_two:names[1]});if(error){document.getElementById('dbStatus').textContent='No se pudo guardar: '+error.message;return}await loadLeaderboard();document.getElementById('status').textContent+=' Resultado guardado en la nube.'}
+loadLeaderboard();
+resizeCanvas();
+</script>
+</body></html>
