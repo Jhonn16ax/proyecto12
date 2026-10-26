@@ -40,7 +40,7 @@ button,input{font:inherit}button{cursor:pointer;border:0;font-weight:900;letter-
 <div class="below">
 <div class="controls">
 <div class="player-control"><strong><i class="dot" style="background:var(--cyan)"></i> PILOTO 01 · AZUL</strong><p>Mover: <kbd>A</kbd> <kbd>D</kbd> o <kbd>←</kbd> <kbd>→</kbd><br>Turbo: <kbd>W</kbd> / <kbd>↑</kbd></p></div>
-<div class="player-control"><strong><i class="dot" style="background:var(--pink)"></i> PILOTO 02 · ROSA</strong><p>Mover: <kbd>J</kbd> <kbd>L</kbd><br>Turbo: <kbd>I</kbd></p></div>
+<div class="player-control hidden" id="player2Controls"><strong><i class="dot" style="background:var(--pink)"></i> RIVAL CONECTADO</strong><p>El otro jugador controla su coche desde su propio navegador.</p></div>
 </div>
 <div class="drive-pad"><button id="p1left">◀ P1 IZQUIERDA</button><button id="p1right">P1 DERECHA ▶</button></div><div class="drive-pad"><button id="p2left">◀ P2 IZQUIERDA</button><button id="p2right">P2 DERECHA ▶</button></div><div class="actions"><button class="primary" id="startBtn">▶ Iniciar carrera</button><button class="secondary" id="resetBtn">Reiniciar</button></div>
 <div class="status" id="status" aria-live="polite">Listos para competir. Esquiva el tráfico y usa el turbo en las rectas.</div>
@@ -52,7 +52,7 @@ button,input{font:inherit}button{cursor:pointer;border:0;font-weight:900;letter-
 <div class="score-row"><div class="driver"><div class="avatar" style="color:var(--pink)">P2</div><div><b id="name2Display">ROSA</b><small>Distancia recorrida</small></div></div><div class="points" id="score2">0</div></div>
 <div class="score-row"><span class="subtle">TIEMPO RESTANTE</span><div class="points" id="timer">60</div></div>
 </section>
-<section class="side-card"><h3 class="side-title">HALL OF FAME <span class="subtle">TOP 5</span></h3><div id="leaderboard" class="leaderboard"><div class="empty">El ranking compartido aparecerá cuando conectes Supabase.</div></div><div class="status" id="dbStatus">Modo demo: base de datos aún sin configurar.</div></section>
+<section class="side-card"><h3 class="side-title">HALL OF FAME <span class="subtle">TOP 5</span></h3><div id="leaderboard" class="leaderboard"><div class="empty">El ranking compartido aparecerá cuando conectes Supabase.</div></div><div class="status" id="dbStatus">Conecta Supabase para encontrar a otro piloto.</div></section>
 <section class="side-card"><h3 class="side-title">OBJETIVO</h3><p class="empty">Corre durante 60 segundos por el circuito con curvas. Usa la dirección para cambiar de línea y el turbo para acelerar. Gana quien recorra más distancia.</p></section>
 </aside>
 </main>
@@ -75,10 +75,13 @@ const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
 const W=960,H=540,keys=new Set();
 let running=false,ended=false,last=0,elapsed=0,timeLeft=60,spawn=0,roadOffset=0,obstacles=[],particles=[];
 let names=['AZUL','ROSA'];
+// Cada navegador controla un solo coche. El segundo se dibuja sólo al recibir datos de otro jugador conectado.
 const cars=[
- {x:-.25,lane:-.25,color:'#54f6ff',accent:'#e4ffff',speed:0,distance:0,boost:100,hit:0,progress:0,steer:0},
- {x:.25,lane:.25,color:'#ff4da6',accent:'#ffe2f1',speed:0,distance:0,boost:100,hit:0,progress:0,steer:0}
+ {x:-.25,lane:-.25,color:'#54f6ff',accent:'#e4ffff',speed:0,distance:0,boost:100,hit:0,progress:-Math.PI/2,steer:0},
+ {x:.25,lane:.25,color:'#ff4da6',accent:'#ffe2f1',speed:0,distance:0,boost:100,hit:0,progress:-Math.PI/2+.09,steer:0}
 ];
+const clientId=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+Math.random();
+let liveChannel=null,remoteState=null,remoteLastSeen=0,syncElapsed=0,remoteOnline=false;
 function resizeCanvas(){const rect=canvas.getBoundingClientRect(); if(!rect.width)return; const dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.width/(innerWidth<560?4/3:16/9)*dpr);ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);draw()}
 window.addEventListener('resize',resizeCanvas);
 function roundedRect(x,y,w,h,r,fill,stroke){ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.stroke()}}
@@ -172,8 +175,15 @@ function draw(){
  ctx.restore();
  // línea de salida y meta sobre el circuito
  const finish=trackPoint(-Math.PI/2,0);ctx.save();ctx.translate(finish.x,finish.y);ctx.rotate(finish.angle);for(let i=0;i<10;i++)for(let j=0;j<2;j++){ctx.fillStyle=(i+j)%2?'#fff':'#171b24';ctx.fillRect(-48+i*10,-64+j*10,10,10)}ctx.restore();
- // carros avanzan realmente por el circuito, con orientación siguiendo cada curva
- cars.forEach((car,i)=>{const p=trackPoint(car.progress,car.x*28);drawCar(p.x,p.y,car.color,.76,p.angle+Math.PI/2);ctx.fillStyle=car.color;ctx.font='900 12px system-ui';ctx.textAlign='center';ctx.fillText(names[i].toUpperCase(),p.x,p.y-31);ctx.textAlign='left'});
+ // El coche local siempre aparece. El coche rival sólo aparece cuando otro navegador está conectado.
+ const local=cars[0],lp=trackPoint(local.progress,local.x*28);
+ drawCar(lp.x,lp.y,local.color,.76,lp.angle+Math.PI/2);
+ ctx.fillStyle=local.color;ctx.font='900 12px system-ui';ctx.textAlign='center';ctx.fillText(names[0].toUpperCase()+' (TÚ)',lp.x,lp.y-31);ctx.textAlign='left';
+ if(remoteOnline&&remoteState){
+   const rp=trackPoint(Number(remoteState.progress)||0,(Number(remoteState.x)||0)*28);
+   drawCar(rp.x,rp.y,'#ff4da6',.76,rp.angle+Math.PI/2);
+   ctx.fillStyle='#ff4da6';ctx.font='900 12px system-ui';ctx.textAlign='center';ctx.fillText(String(remoteState.name||'RIVAL').toUpperCase(),rp.x,rp.y-31);ctx.textAlign='left';
+ }
  // marcador superior
  ctx.fillStyle='#10172bea';ctx.fillRect(0,0,W,66);ctx.fillStyle='#fff';ctx.font='900 14px system-ui';ctx.fillText('SPEED RIVALS  /  CIRCUIT GP',22,23);
  ctx.fillStyle='#34435a';roundedRect(22,37,450,8,4,'#34435a');roundedRect(22,37,450*Math.min(1,elapsed/60),5,3,'#54f6ff');
@@ -183,36 +193,45 @@ function draw(){
 }function update(dt){
  if(!running)return;
  elapsed+=dt;timeLeft=Math.max(0,60-elapsed);
- const inputs=[
-  [keys.has('arrowleft')||keys.has('a'),keys.has('arrowright')||keys.has('d'),keys.has('arrowup')||keys.has('w')],
-  [keys.has('j'),keys.has('l'),keys.has('i')]
- ];
- cars.forEach((car,i)=>{
-  const [left,right,boost]=inputs[i],turbo=boost&&car.boost>0;
-  car.boost=Math.max(0,Math.min(100,car.boost+(turbo?-32:20)*dt));
-  // La dirección mueve al piloto entre el interior y exterior de la pista.
-  car.x+=(right?1:0)*dt*1.05-(left?1:0)*dt*1.05;
-  car.x=Math.max(-1.05,Math.min(1.05,car.x));
-  const target=turbo?2.05:1.22;
-  car.speed+=(target-car.speed)*Math.min(1,dt*1.5);
-  if(car.hit>0)car.speed=Math.min(car.speed,.55);
-  car.progress+=car.speed*dt*.36;
-  car.distance+=car.speed*dt*30;
-  car.hit=Math.max(0,car.hit-dt);
- });
- // Si se acercan demasiado, el contacto les reduce momentáneamente la velocidad.
- const p1=trackPoint(cars[0].progress,cars[0].x*28),p2=trackPoint(cars[1].progress,cars[1].x*28);
- if(Math.hypot(p1.x-p2.x,p1.y-p2.y)<28){cars[0].hit=.25;cars[1].hit=.25;cars[0].speed*=.92;cars[1].speed*=.92}
- document.getElementById('score1').textContent=Math.floor(cars[0].distance);
- document.getElementById('score2').textContent=Math.floor(cars[1].distance);
+ const car=cars[0];
+ const left=keys.has('arrowleft')||keys.has('a');
+ const right=keys.has('arrowright')||keys.has('d');
+ const boost=keys.has('arrowup')||keys.has('w'),turbo=boost&&car.boost>0;
+ car.boost=Math.max(0,Math.min(100,car.boost+(turbo?-32:20)*dt));
+ car.x+=(right?1:0)*dt*1.05-(left?1:0)*dt*1.05;
+ car.x=Math.max(-1.05,Math.min(1.05,car.x));
+ const target=turbo?2.05:1.22;
+ car.speed+=(target-car.speed)*Math.min(1,dt*1.5);
+ car.progress+=car.speed*dt*.36;
+ car.distance+=car.speed*dt*30;
+ document.getElementById('score1').textContent=Math.floor(car.distance);
+ document.getElementById('score2').textContent=remoteOnline&&remoteState?Math.floor(Number(remoteState.distance)||0):'—';
  document.getElementById('timer').textContent=Math.ceil(timeLeft);
  if(timeLeft<=0)finishRace();
 }
-function frame(t){const dt=Math.min(.035,(t-last)/1000||0);last=t;if(running)update(dt);draw();requestAnimationFrame(frame)}
+function syncPlayer(dt){
+ if(!db||!liveChannel)return;
+ syncElapsed+=dt;
+ if(syncElapsed<.15)return;
+ syncElapsed=0;
+ liveChannel.send({type:'broadcast',event:'player-state',payload:{
+   id:clientId,name:names[0]||'PILOTO',x:cars[0].x,progress:cars[0].progress,
+   distance:Math.round(cars[0].distance),running,updatedAt:Date.now()
+ }}).catch(()=>{});
+ if(remoteOnline&&Date.now()-remoteLastSeen>3500){
+   remoteOnline=false;remoteState=null;
+   document.getElementById('dbStatus').textContent='Esperando a otro piloto…';
+   document.getElementById('status').textContent='Sólo estás tú en la pista. Cuando otro jugador entre, aparecerá su coche.';
+   document.getElementById('score2').textContent='—';
+   document.getElementById('name2Display').textContent='ESPERANDO…';
+   document.getElementById('player2Controls').classList.add('hidden');
+ }
+}
+function frame(t){const dt=Math.min(.035,(t-last)/1000||0);last=t;if(running)update(dt);syncPlayer(dt);draw();requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
-function start(){document.getElementById('setup').classList.add('hidden');running=true;ended=false;elapsed=0;timeLeft=60;spawn=.6;obstacles=[];particles=[];cars.forEach((c,i)=>{c.x=i===0?-.25:.25;c.speed=1.22;c.distance=0;c.boost=100;c.hit=0;c.progress=-Math.PI/2+(i*.09)});document.getElementById('gameState').textContent='RACE LIVE';document.getElementById('startBtn').textContent='Carrera en curso';document.getElementById('startBtn').disabled=true;document.getElementById('status').textContent='¡A correr! Esquiva los coches y activa el turbo.'}
+function start(){document.getElementById('setup').classList.add('hidden');running=true;ended=false;elapsed=0;timeLeft=60;cars[0].x=-.25;cars[0].speed=1.22;cars[0].distance=0;cars[0].boost=100;cars[0].hit=0;cars[0].progress=-Math.PI/2;document.getElementById('gameState').textContent='RACE LIVE';document.getElementById('startBtn').textContent='Carrera en curso';document.getElementById('startBtn').disabled=true;document.getElementById('status').textContent=remoteOnline?'¡Rival conectado! Compite usando las flechas o A/D y W para turbo.':'¡A correr! Eres el único coche hasta que se conecte otro jugador.'}
 function finishRace(){running=false;ended=true;document.getElementById('gameState').textContent='FINISH';document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Otra carrera';const winner=cars[0].distance===cars[1].distance?'Empate':cars[0].distance>cars[1].distance?names[0]:names[1];document.getElementById('status').textContent='Carrera terminada. '+(winner==='Empate'?'¡Empate!':winner+' gana')+'. Guardando resultado si Supabase está conectado…';saveResult(winner)}
-function restart(){running=false;ended=false;document.getElementById('setup').classList.remove('hidden');document.getElementById('gameState').textContent='STANDBY';document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Iniciar carrera';timeLeft=60;elapsed=0;cars.forEach((c,i)=>{c.distance=0;c.speed=0;c.x=i===0?-.25:.25;c.progress=-Math.PI/2+(i*.09);c.hit=0;c.boost=100});obstacles=[];draw()}
+function restart(){running=false;ended=false;document.getElementById('setup').classList.remove('hidden');document.getElementById('gameState').textContent='STANDBY';document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Iniciar carrera';timeLeft=60;elapsed=0;cars[0].distance=0;cars[0].speed=0;cars[0].x=-.25;cars[0].progress=-Math.PI/2;cars[0].hit=0;cars[0].boost=100;draw()}
 document.getElementById('confirmBtn').addEventListener('click',()=>{names[0]=document.getElementById('name1').value.trim()||'AZUL';names[1]=document.getElementById('name2').value.trim()||'ROSA';document.getElementById('name1Display').textContent=names[0].toUpperCase();document.getElementById('name2Display').textContent=names[1].toUpperCase();start()});
 document.getElementById('startBtn').addEventListener('click',()=>{if(ended)restart();else if(!running){document.getElementById('setup').classList.remove('hidden')}});
 document.getElementById('resetBtn').addEventListener('click',restart);
@@ -224,7 +243,29 @@ bindHoldButton('p1left','a');bindHoldButton('p1right','d');bindHoldButton('p2lef
 async function loadLeaderboard(){if(!db){document.getElementById('dbStatus').textContent='Pendiente: configura Supabase para ranking compartido.';return}const {data,error}=await db.from('race_results').select('winner, distance, created_at').order('distance',{ascending:false}).limit(5);if(error){document.getElementById('dbStatus').textContent='Supabase conectado, revisa la tabla/políticas: '+error.message;return}document.getElementById('leaderboard').innerHTML=data.length?data.map((r,i)=>'<div class="leader-item"><span class="rank">0'+(i+1)+'</span><span class="leader-name">'+escapeHtml(r.winner)+'</span><span class="leader-time">'+Math.round(r.distance)+' m</span></div>').join(''):'<div class="empty">Todavía no hay carreras guardadas.</div>';document.getElementById('dbStatus').textContent='Ranking sincronizado con la base de datos.'}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function saveResult(winner){if(!db){document.getElementById('dbStatus').textContent='Resultado solo en esta partida. Configura Supabase para compartirlo entre dispositivos.';return}const maxDistance=Math.max(...cars.map(c=>Math.round(c.distance)));const {error}=await db.from('race_results').insert({winner, distance:maxDistance, player_one:names[0], player_two:names[1]});if(error){document.getElementById('dbStatus').textContent='No se pudo guardar: '+error.message;return}await loadLeaderboard();document.getElementById('status').textContent+=' Resultado guardado en la nube.'}
+function connectLiveRace(){
+ if(!db){document.getElementById('dbStatus').textContent='Configura URL y publishable key de Supabase para conectar jugadores.';return}
+ liveChannel=db.channel('speed-rivals-lobby',{config:{broadcast:{self:false}}});
+ liveChannel.on('broadcast',{event:'player-state'},({payload})=>{
+   if(!payload||payload.id===clientId)return;
+   remoteState=payload;remoteLastSeen=Date.now();remoteOnline=true;
+   document.getElementById('name2Display').textContent=String(payload.name||'RIVAL').toUpperCase();
+   document.getElementById('score2').textContent=Math.floor(Number(payload.distance)||0);
+   document.getElementById('player2Controls').classList.remove('hidden');
+   document.getElementById('dbStatus').textContent='¡Rival conectado! Su coche aparece en tu pista.';
+   document.getElementById('status').textContent='Rival conectado: '+String(payload.name||'RIVAL')+'. Compitan desde dos navegadores.';
+ });
+ liveChannel.subscribe(status=>{
+   if(status==='SUBSCRIBED'){
+     document.getElementById('dbStatus').textContent='Conectado. Buscando otro piloto…';
+     document.getElementById('status').textContent='Sólo estás tú en la pista. Cuando otro jugador entre, aparecerá su coche.';
+   }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+     document.getElementById('dbStatus').textContent='No se pudo conectar al modo online. Revisa Supabase Realtime.';
+   }
+ });
+}
 loadLeaderboard();
+connectLiveRace();
 resizeCanvas();
 </script>
 </body></html>
