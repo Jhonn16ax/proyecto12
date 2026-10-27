@@ -73,7 +73,7 @@ if (window.supabase && SUPABASE_URL.startsWith("https://") && SUPABASE_PUBLISHAB
 }
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
 const W=960,H=540,keys=new Set();
-let running=false,ended=false,last=0,elapsed=0,timeLeft=60,spawn=0,roadOffset=0,obstacles=[],particles=[];
+let running=false,ended=false,crashed=false,last=0,elapsed=0,timeLeft=60,spawn=0,roadOffset=0,obstacles=[],particles=[];
 let names=['AZUL','ROSA'];
 // Cada navegador controla un solo coche. El segundo se dibuja sólo al recibir datos de otro jugador conectado.
 const cars=[
@@ -87,7 +87,7 @@ window.addEventListener('resize',resizeCanvas);
 function roundedRect(x,y,w,h,r,fill,stroke){ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.stroke()}}
 function poly(points,fill){ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);ctx.closePath();ctx.fillStyle=fill;ctx.fill()}
 // Endless Grand Prix: la carretera avanza hacia el jugador, sin vueltas repetitivas.
-const HORIZON=105, CAR_Y=438, VIEW=1450, ROAD_MAX_SPEED=310;
+const HORIZON=105, CAR_Y=472, VIEW=1450, ROAD_MAX_SPEED=310;
 let steerVisual=0, collisionFlash=0, obstacleCursor=0, lastObstacleHit=-99999;
 function roadCurve(world){
   return Math.sin(world/690)*0.72 + Math.sin(world/315)*0.27 + Math.sin(world/1450)*0.32;
@@ -199,7 +199,7 @@ function drawRoad(){
 }
 function drawObstacle(o){
   const ahead=o.d-distance;
-  if(ahead<5||ahead>VIEW)return;
+  if(ahead<-38||ahead>VIEW)return;
   const y=roadY(ahead),p=Math.max(.08,Math.min(1,(y-HORIZON)/(CAR_Y-HORIZON)));
   const s=.16+p*1.02,center=roadCenter(distance,ahead),x=center+o.lane*halfRoad(y)*.68;
   ctx.save();ctx.translate(x,y);ctx.scale(s,s);
@@ -244,7 +244,7 @@ function draw(){
   for(const o of obstacles)drawObstacle(o);
   const c=roadCenter(distance,0),hw=halfRoad(CAR_Y);
   const px=c+cars[0].x*hw*.72;
-  drawCar(px,CAR_Y+28,cars[0].color,1.02,steerVisual*.22);
+  drawCar(px,CAR_Y-16,cars[0].color,1.02,steerVisual*.22);
   if(remoteOnline&&remoteState){
     const rivalLane=Number(remoteState.x)||0;
     drawCar(c+rivalLane*hw*.72,CAR_Y-12,'#ff4da6',.78,0);
@@ -261,22 +261,26 @@ function draw(){
   if(collisionFlash>0){ctx.fillStyle='rgba(255,48,74,'+Math.min(.22,collisionFlash*.08)+')';ctx.fillRect(0,67,W,H-67)}
   if(!running){
     ctx.fillStyle='#061020b8';ctx.fillRect(0,67,W,H-67);ctx.textAlign='center';
-    ctx.fillStyle='#fff';ctx.font='900 36px system-ui';ctx.fillText(ended?'FIN DE LA CARRERA':'GRAND PRIX',W/2,238);
+    ctx.fillStyle='#fff';ctx.font='900 36px system-ui';ctx.fillText(crashed?'¡CHOCASTE!':(ended?'FIN DE LA CARRERA':'GRAND PRIX'),W/2,238);
     ctx.fillStyle='#d5ff56';ctx.font='800 14px system-ui';
-    ctx.fillText(ended?'DISTANCIA: '+Math.floor(cars[0].distance)+' METROS':'MANTÉN ↑ PARA ACELERAR · USA ← → PARA ESQUIVAR',W/2,270);ctx.textAlign='left';
+    ctx.fillText(crashed?'LA CARRERA SE REINICIÓ · PULSA REINTENTAR':(ended?'DISTANCIA: '+Math.floor(cars[0].distance)+' METROS':'MANTÉN ↑ PARA ACELERAR · USA ← → PARA ESQUIVAR'),W/2,270);ctx.textAlign='left';
   }
 }
 function resetAfterCrash(obstacle){
-  // Vuelve al principio sin mostrar de nuevo el menú: el piloto puede arrancar otra vez.
+  // El choque corta la carrera y coloca todo en cero. El jugador debe volver a iniciar.
   keys.clear();
-  running=true;ended=false;elapsed=0;timeLeft=60;distance=0;collisionFlash=1.2;lastObstacleHit=-99999;
+  running=false;ended=true;crashed=true;
+  elapsed=0;timeLeft=60;distance=0;collisionFlash=1.2;lastObstacleHit=-99999;
   cars[0].x=0;cars[0].lane=0;cars[0].speed=0;cars[0].distance=0;cars[0].progress=0;
   obstacles.forEach(o=>o.hit=false);
   steerVisual=0;
   document.getElementById('score1').textContent='0';
   document.getElementById('timer').textContent='60';
-  document.getElementById('gameState').textContent='RESTART';
-  document.getElementById('status').textContent='¡Choque! Volviste al inicio. Vuelve a acelerar y esquiva los obstáculos.';
+  document.getElementById('gameState').textContent='CRASH';
+  document.getElementById('startBtn').disabled=false;
+  document.getElementById('startBtn').textContent='▶ Reintentar carrera';
+  document.getElementById('status').textContent='¡Choque! Volviste al principio. Pulsa «Reintentar carrera» para comenzar desde cero.';
+  draw();
 }
 function update(dt){
   if(!running)return;
@@ -305,11 +309,15 @@ function update(dt){
   car.progress=distance;
   // Si el carro toca un obstáculo, reinicia la carrera completa desde el inicio.
   for(const o of obstacles){
-    if(o.hit||o.d<oldDistance-10||o.d>car.distance+10)continue;
-    if(Math.abs(car.x-o.lane)<.26){
+    const ahead=o.d-car.distance;
+    if(o.hit||ahead>34)continue;
+    if(ahead < -35){o.hit=true;continue;}
+    // La zona de choque coincide con los últimos metros visibles del obstáculo.
+    if(ahead<=34&&Math.abs(car.x-o.lane)<.30){
       resetAfterCrash(o);
       return;
-    }else{o.hit=true;}
+    }
+    if(ahead < -12)o.hit=true;
   }
   if(collisionFlash>0)collisionFlash=Math.max(0,collisionFlash-dt);
   document.getElementById('score1').textContent=Math.floor(car.distance);
@@ -342,7 +350,7 @@ function frame(t){
 requestAnimationFrame(frame);
 function start(){
   keys.clear();document.getElementById('setup').classList.add('hidden');
-  running=true;ended=false;elapsed=0;timeLeft=60;distance=0;collisionFlash=0;lastObstacleHit=-99999;
+  running=true;ended=false;crashed=false;elapsed=0;timeLeft=60;distance=0;collisionFlash=0;lastObstacleHit=-99999;
   cars[0].x=0;cars[0].lane=0;cars[0].speed=0;cars[0].distance=0;cars[0].progress=0;
   obstacles.forEach(o=>o.hit=false);
   document.getElementById('gameState').textContent='RACE LIVE';
@@ -352,7 +360,7 @@ function start(){
   draw();
 }
 function finishRace(){
-  running=false;ended=true;document.getElementById('gameState').textContent='FINISH';
+  running=false;ended=true;crashed=false;document.getElementById('gameState').textContent='FINISH';
   document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Otra carrera';
   const winner=remoteOnline&&remoteState&&Number(remoteState.distance)>cars[0].distance?names[1]:names[0];
   document.getElementById('status').textContent='Carrera terminada. Recorriste '+Math.floor(cars[0].distance)+' metros. Guardando resultado si Supabase está conectado…';
@@ -371,7 +379,7 @@ document.getElementById('confirmBtn').addEventListener('click',()=>{
   document.getElementById('name1Display').textContent=names[0].toUpperCase();
   document.getElementById('name2Display').textContent=names[1].toUpperCase();start();
 });
-document.getElementById('startBtn').addEventListener('click',()=>{if(ended)restart();else if(!running)document.getElementById('setup').classList.remove('hidden')});
+document.getElementById('startBtn').addEventListener('click',()=>{if(crashed){start()}else if(ended){restart()}else if(!running){document.getElementById('setup').classList.remove('hidden')}});
 document.getElementById('resetBtn').addEventListener('click',restart);
 function normalizeControlKey(e){
   const k=String(e.key||'').toLowerCase();
