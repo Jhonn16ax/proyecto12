@@ -72,6 +72,11 @@ if (window.supabase && SUPABASE_URL.startsWith("https://") && SUPABASE_PUBLISHAB
   db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 }
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const sceneryImage=new Image();
+let sceneryLoaded=false;
+sceneryImage.onload=()=>{sceneryLoaded=true;draw()};
+sceneryImage.onerror=()=>{console.warn('No se pudo cargar assets/coastal-sunset.svg')};
+sceneryImage.src='assets/coastal-sunset.svg';
 const W=960,H=540,keys=new Set();
 const RACE_SECONDS=150;
 let running=false,ended=false,crashed=false,last=0,elapsed=0,timeLeft=RACE_SECONDS,spawn=0,roadOffset=0,obstacles=[],particles=[];
@@ -130,27 +135,15 @@ function buildObstacles(){
 }
 obstacles=buildObstacles();
 function drawBackground(){
-  const sky=ctx.createLinearGradient(0,0,0,HORIZON+85);
-  sky.addColorStop(0,'#07152b');sky.addColorStop(.55,'#2588ac');sky.addColorStop(1,'#a7d8d2');
-  ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
-  // Sol, montañas y cordillera para dar sensación de profundidad.
-  const sun=ctx.createRadialGradient(760,82,5,760,82,88);
-  sun.addColorStop(0,'#fff5b0');sun.addColorStop(1,'#ffd66b00');
-  ctx.fillStyle=sun;ctx.fillRect(650,0,220,185);
-  ctx.fillStyle='#274b63';ctx.beginPath();ctx.moveTo(0,160);
-  for(let x=0;x<=W;x+=55)ctx.lineTo(x,105+Math.sin(x*.014)*27+Math.sin(x*.037)*11);
-  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();ctx.fill();
-  ctx.fillStyle='#326b52';ctx.beginPath();ctx.moveTo(0,178);
-  for(let x=0;x<=W;x+=40)ctx.lineTo(x,145+Math.sin(x*.012+1.8)*23+Math.sin(x*.032)*8);
-  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();ctx.fill();
-  // Césped continuo; pequeños arbustos aportan textura sin franjas horizontales.
-  ctx.fillStyle='#397e43';ctx.fillRect(0,HORIZON,W,H-HORIZON);
-  for(let i=0;i<70;i++){
-    const x=(i*137+Math.floor(distance/9)%W)%W;
-    const y=HORIZON+14+(i*37)%240;
-    ctx.fillStyle=i%2?'#347641':'#43884a';
-    ctx.beginPath();ctx.ellipse(x,y,8+(i%4)*2,5+(i%3),0,0,Math.PI*2);ctx.fill();
+  // Nuevo escenario panorámico de costa al atardecer, sin franjas de césped repetidas.
+  if(sceneryLoaded){
+    ctx.drawImage(sceneryImage,0,0,W,H);
+    return;
   }
+  // Fondo de respaldo mientras carga la ilustración.
+  const sky=ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,'#17234c');sky.addColorStop(.45,'#fa9c78');sky.addColorStop(1,'#155d7a');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
 }
 function drawRoad(){
   // Asfalto como una sola figura continua para eliminar uniones entre segmentos.
