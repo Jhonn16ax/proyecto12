@@ -421,6 +421,8 @@ function finishRace(){
   const winner=remoteOnline&&remoteState&&Number(remoteState.distance)>cars[0].distance?names[1]:names[0];
   document.getElementById('status').textContent='Carrera terminada. Recorriste '+Math.floor(cars[0].distance)+' metros. Guardando resultado si Supabase está conectado…';
   saveResult(winner);
+  // Cierra esta sesión compartida para que la siguiente carrera pueda crear un nuevo reloj.
+  localReady=false;matchStartAt=0;matchRaceId='';
 }
 function restart(){
   running=false;ended=false;keys.clear();
