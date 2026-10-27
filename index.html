@@ -266,6 +266,18 @@ function draw(){
     ctx.fillText(ended?'DISTANCIA: '+Math.floor(cars[0].distance)+' METROS':'MANTÉN ↑ PARA ACELERAR · USA ← → PARA ESQUIVAR',W/2,270);ctx.textAlign='left';
   }
 }
+function resetAfterCrash(obstacle){
+  // Vuelve al principio sin mostrar de nuevo el menú: el piloto puede arrancar otra vez.
+  keys.clear();
+  running=true;ended=false;elapsed=0;timeLeft=60;distance=0;collisionFlash=1.2;lastObstacleHit=-99999;
+  cars[0].x=0;cars[0].lane=0;cars[0].speed=0;cars[0].distance=0;cars[0].progress=0;
+  obstacles.forEach(o=>o.hit=false);
+  steerVisual=0;
+  document.getElementById('score1').textContent='0';
+  document.getElementById('timer').textContent='60';
+  document.getElementById('gameState').textContent='RESTART';
+  document.getElementById('status').textContent='¡Choque! Volviste al inicio. Vuelve a acelerar y esquiva los obstáculos.';
+}
 function update(dt){
   if(!running)return;
   elapsed+=dt;timeLeft=Math.max(0,60-elapsed);
@@ -291,12 +303,12 @@ function update(dt){
   car.distance+=car.speed*dt*1.18;
   distance=car.distance;
   car.progress=distance;
-  // Choques: el obstáculo que llega al coche penaliza la velocidad.
+  // Si el carro toca un obstáculo, reinicia la carrera completa desde el inicio.
   for(const o of obstacles){
     if(o.hit||o.d<oldDistance-10||o.d>car.distance+10)continue;
     if(Math.abs(car.x-o.lane)<.26){
-      o.hit=true;car.speed*=o.type==='barrier'?.34:.52;collisionFlash=.9;
-      document.getElementById('status').textContent=o.type==='oil'?'¡Aceite! El carro perdió agarre.':'¡Choque! Esquiva los obstáculos moviéndote a izquierda o derecha.';
+      resetAfterCrash(o);
+      return;
     }else{o.hit=true;}
   }
   if(collisionFlash>0)collisionFlash=Math.max(0,collisionFlash-dt);
