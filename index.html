@@ -257,7 +257,7 @@ function draw(){
   ctx.fillStyle='#071326e8';ctx.fillRect(0,0,W,67);
   ctx.fillStyle='#54f6ff';ctx.font='900 13px system-ui';ctx.fillText('SPEED RIVALS  /  GRAND PRIX',20,22);
   ctx.fillStyle='#fff';ctx.font='900 22px system-ui';ctx.fillText(Math.round(cars[0].speed*1.08)+' KM/H',20,50);
-  ctx.fillStyle='#d5ff56';ctx.font='900 20px system-ui';ctx.fillText(Math.floor(raceScores[0])+' m',280,48);
+  ctx.fillStyle='#d5ff56';ctx.font='900 20px system-ui';ctx.fillText((raceScores[0]/1000).toFixed(2)+' km',280,48);
   ctx.fillStyle='#d8e4f7';ctx.font='800 16px system-ui';ctx.fillText('TIEMPO '+formatRaceTime(timeLeft),480,46);
   ctx.fillStyle='#667a98';roundedRect(680,30,250,10,5,'#34425a');
   roundedRect(680,30,250*Math.min(1,cars[0].speed/ROAD_MAX_SPEED),10,5,'#54f6ff');
@@ -268,7 +268,7 @@ function draw(){
     const waitingOnline=db&&localReady&&!matchStartAt;
     ctx.fillStyle='#fff';ctx.font='900 36px system-ui';ctx.fillText(waitingOnline?'ESPERANDO AL RIVAL':(crashed?'¡CHOCASTE!':(ended?'FIN DE LA CARRERA':'GRAND PRIX')),W/2,238);
     ctx.fillStyle='#d5ff56';ctx.font='800 14px system-ui';
-    ctx.fillText(waitingOnline?'LA CARRERA EMPIEZA CUANDO SE CONECTE EL SEGUNDO JUGADOR':(crashed?'':(ended?'DISTANCIA: '+Math.floor(raceScores[0])+' METROS':'MANTÉN ↑ PARA ACELERAR · USA ← → PARA ESQUIVAR')),W/2,270);ctx.textAlign='left';
+    ctx.fillText(waitingOnline?'LA CARRERA EMPIEZA CUANDO SE CONECTE EL SEGUNDO JUGADOR':(crashed?'':(ended?'DISTANCIA: '+(raceScores[0]/1000).toFixed(2)+' KM':'MANTÉN ↑ PARA ACELERAR · USA ← → PARA ESQUIVAR')),W/2,270);ctx.textAlign='left';
   }
 }
 function resetPlayerCarAfterCrash(){
@@ -331,8 +331,8 @@ function update(dt){
     }
   }
   if(collisionFlash>0)collisionFlash=Math.max(0,collisionFlash-dt);
-  document.getElementById('score1').textContent=Math.floor(raceScores[0]);
-  document.getElementById('score2').textContent=remoteOnline&&remoteState?Math.floor(raceScores[1]):'—';
+  document.getElementById('score1').textContent=(raceScores[0]/1000).toFixed(2)+' km';
+  document.getElementById('score2').textContent=remoteOnline&&remoteState?(raceScores[1]/1000).toFixed(2)+' km':'—';
   document.getElementById('timer').textContent=formatRaceTime(timeLeft);
   if(timeLeft<=0)finishRace();
 }
@@ -426,7 +426,7 @@ function finishRace(){
   running=false;ended=true;crashed=false;document.getElementById('gameState').textContent='FINISH';
   document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Otra carrera';
   const winner=remoteOnline&&remoteState&&Number(remoteState.distance)>raceScores[0]?names[1]:names[0];
-  document.getElementById('status').textContent='Carrera terminada. Recorriste '+Math.floor(raceScores[0])+' metros. Guardando resultado si Supabase está conectado…';
+  document.getElementById('status').textContent='Carrera terminada. Recorriste '+(raceScores[0]/1000).toFixed(2)+' km. Guardando resultado si Supabase está conectado…';
   saveResult(winner);
   // Cierra esta sesión compartida para que la siguiente carrera pueda crear un nuevo reloj.
   localReady=false;matchStartAt=0;matchRaceId='';
@@ -471,7 +471,7 @@ function bindHoldButton(id,key){
 }
 bindHoldButton('p1left','arrowleft');bindHoldButton('p1right','arrowright');bindHoldButton('p1up','accelerate');
 let distance=0;
-async function loadLeaderboard(){if(!db){document.getElementById('dbStatus').textContent='Pendiente: configura Supabase para ranking compartido.';return}const {data,error}=await db.from('race_results').select('winner, distance, created_at').order('distance',{ascending:false}).limit(5);if(error){document.getElementById('dbStatus').textContent='Supabase conectado, revisa la tabla/políticas: '+error.message;return}document.getElementById('leaderboard').innerHTML=data.length?data.map((r,i)=>'<div class="leader-item"><span class="rank">0'+(i+1)+'</span><span class="leader-name">'+escapeHtml(r.winner)+'</span><span class="leader-time">'+Math.round(r.distance)+' m</span></div>').join(''):'<div class="empty">Todavía no hay carreras guardadas.</div>';document.getElementById('dbStatus').textContent='Ranking sincronizado con la base de datos.'}
+async function loadLeaderboard(){if(!db){document.getElementById('dbStatus').textContent='Pendiente: configura Supabase para ranking compartido.';return}const {data,error}=await db.from('race_results').select('winner, distance, created_at').order('distance',{ascending:false}).limit(5);if(error){document.getElementById('dbStatus').textContent='Supabase conectado, revisa la tabla/políticas: '+error.message;return}document.getElementById('leaderboard').innerHTML=data.length?data.map((r,i)=>'<div class="leader-item"><span class="rank">0'+(i+1)+'</span><span class="leader-name">'+escapeHtml(r.winner)+'</span><span class="leader-time">'+(Number(r.distance||0)/1000).toFixed(2)+' km</span></div>').join(''):'<div class="empty">Todavía no hay carreras guardadas.</div>';document.getElementById('dbStatus').textContent='Ranking sincronizado con la base de datos.'}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function saveResult(winner){if(!db){document.getElementById('dbStatus').textContent='Resultado solo en esta partida. Configura Supabase para compartirlo entre dispositivos.';return}const maxDistance=Math.max(Math.round(raceScores[0]||0),Math.round(remoteOnline&&remoteState?Number(remoteState.distance)||0:0));const {error}=await db.from('race_results').insert({winner, distance:maxDistance, player_one:names[0], player_two:names[1]});if(error){document.getElementById('dbStatus').textContent='No se pudo guardar: '+error.message;return}await loadLeaderboard();document.getElementById('status').textContent+=' Resultado guardado en la nube.'}
 function connectLiveRace(){
@@ -482,7 +482,7 @@ function connectLiveRace(){
    remoteState=payload;remoteLastSeen=Date.now();remoteOnline=true;
    document.getElementById('name2Display').textContent=String(payload.name||'RIVAL').toUpperCase();
    raceScores[1]=Math.max(raceScores[1],Number(payload.distance)||0);
-   document.getElementById('score2').textContent=Math.floor(raceScores[1]);
+   document.getElementById('score2').textContent=(raceScores[1]/1000).toFixed(2)+' km';
    document.getElementById('player2Controls').classList.remove('hidden');
    document.getElementById('player2Pad').classList.remove('hidden');
    document.getElementById('dbStatus').textContent='¡Rival conectado! Carrera en línea.';
