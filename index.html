@@ -50,7 +50,7 @@ button,input{font:inherit}button{cursor:pointer;border:0;font-weight:900;letter-
 <section class="side-card"><h3 class="side-title">EN CARRERA <span class="subtle">EN VIVO</span></h3>
 <div class="score-row"><div class="driver"><div class="avatar" style="color:var(--cyan)">P1</div><div><b id="name1Display">AZUL</b><small>Distancia recorrida</small></div></div><div class="points" id="score1">0</div></div>
 <div class="score-row"><div class="driver"><div class="avatar" style="color:var(--pink)">P2</div><div><b id="name2Display">ESPERANDO…</b><small>Rival conectado</small></div></div><div class="points" id="score2">—</div></div>
-<div class="score-row"><span class="subtle">TIEMPO RESTANTE</span><div class="points" id="timer">150</div></div>
+<div class="score-row"><span class="subtle">TIEMPO RESTANTE</span><div class="points" id="timer">2:30</div></div>
 </section>
 <section class="side-card"><h3 class="side-title">HALL OF FAME <span class="subtle">TOP 5</span></h3><div id="leaderboard" class="leaderboard"><div class="empty">El ranking compartido aparecerá cuando conectes Supabase.</div></div><div class="status" id="dbStatus">Conecta Supabase para encontrar a otro piloto.</div></section>
 <section class="side-card"><h3 class="side-title">OBJETIVO</h3><p class="empty">Compite durante 2 minutos y 30 segundos. Si hay dos jugadores conectados, ambos comparten el mismo reloj; si uno choca, solo su carro vuelve al inicio y el tiempo sigue corriendo.</p></section>
@@ -256,7 +256,7 @@ function draw(){
   ctx.fillStyle='#54f6ff';ctx.font='900 13px system-ui';ctx.fillText('SPEED RIVALS  /  GRAND PRIX',20,22);
   ctx.fillStyle='#fff';ctx.font='900 22px system-ui';ctx.fillText(Math.round(cars[0].speed*1.08)+' KM/H',20,50);
   ctx.fillStyle='#d5ff56';ctx.font='900 20px system-ui';ctx.fillText(Math.floor(cars[0].distance)+' m',280,48);
-  ctx.fillStyle='#d8e4f7';ctx.font='800 16px system-ui';ctx.fillText('TIEMPO '+Math.ceil(timeLeft)+' s',480,46);
+  ctx.fillStyle='#d8e4f7';ctx.font='800 16px system-ui';ctx.fillText('TIEMPO '+formatRaceTime(timeLeft),480,46);
   ctx.fillStyle='#667a98';roundedRect(680,30,250,10,5,'#34425a');
   roundedRect(680,30,250*Math.min(1,cars[0].speed/ROAD_MAX_SPEED),10,5,'#54f6ff');
   ctx.fillStyle='#d8e4f7';ctx.font='800 10px system-ui';ctx.fillText('VELOCIDAD',680,22);
@@ -328,7 +328,7 @@ function update(dt){
   if(collisionFlash>0)collisionFlash=Math.max(0,collisionFlash-dt);
   document.getElementById('score1').textContent=Math.floor(car.distance);
   document.getElementById('score2').textContent=remoteOnline&&remoteState?Math.floor(Number(remoteState.distance)||0):'—';
-  document.getElementById('timer').textContent=Math.ceil(timeLeft);
+  document.getElementById('timer').textContent=formatRaceTime(timeLeft);
   if(timeLeft<=0)finishRace();
 }
 function syncPlayer(dt){
@@ -362,12 +362,13 @@ function frame(t){
   }catch(err){console.error('Error del juego:',err);document.getElementById('status').textContent='Error del juego. Recarga la página para continuar.';}
 }
 requestAnimationFrame(frame);
+function formatRaceTime(seconds){const total=Math.max(0,Math.ceil(seconds));return Math.floor(total/60)+':'+String(total%60).padStart(2,'0');}
 function resetPlayerForNewRace(){
   cars[0].x=0;cars[0].lane=0;cars[0].speed=0;cars[0].distance=0;cars[0].progress=0;
   distance=0;elapsed=0;timeLeft=RACE_SECONDS;collisionFlash=0;lastObstacleHit=-99999;steerVisual=0;
   obstacles.forEach(o=>o.hit=false);
   document.getElementById('score1').textContent='0';
-  document.getElementById('timer').textContent=String(RACE_SECONDS);
+  document.getElementById('timer').textContent=formatRaceTime(RACE_SECONDS);
 }
 function applySharedRaceStart(startAt,raceId){
   const at=Number(startAt);
@@ -402,7 +403,7 @@ function start(){
     resetPlayerForNewRace();
     document.getElementById('gameState').textContent='WAITING';
     document.getElementById('status').textContent='Esperando al segundo jugador. El reloj de 2:30 empezará cuando se conecte.';
-    if(remoteState&&remoteState.matchStartAt){
+    if(remoteState&&remoteState.matchStartAt&&!remoteState.ended&&Date.now()<Number(remoteState.matchStartAt)+RACE_SECONDS*1000){
       applySharedRaceStart(remoteState.matchStartAt,remoteState.matchRaceId);
     }else tryStartOnlineRace();
     draw();return;
@@ -425,7 +426,7 @@ function restart(){
   running=false;ended=false;keys.clear();
   document.getElementById('setup').classList.remove('hidden');document.getElementById('gameState').textContent='STANDBY';
   document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Iniciar carrera';
-  localReady=false;matchStartAt=0;matchRaceId='';onlineRace=false;timeLeft=RACE_SECONDS;elapsed=0;distance=0;cars[0].distance=0;cars[0].speed=0;cars[0].x=0;cars[0].progress=0;
+  localReady=false;matchStartAt=0;matchRaceId='';onlineRace=false;timeLeft=RACE_SECONDS;elapsed=0;distance=0;cars[0].distance=0;cars[0].speed=0;cars[0].x=0;cars[0].progress=0;document.getElementById('timer').textContent=formatRaceTime(RACE_SECONDS);
   obstacles.forEach(o=>o.hit=false);draw();
 }
 document.getElementById('confirmBtn').addEventListener('click',()=>{
@@ -475,8 +476,10 @@ function connectLiveRace(){
    document.getElementById('player2Controls').classList.remove('hidden');
    document.getElementById('player2Pad').classList.remove('hidden');
    document.getElementById('dbStatus').textContent='¡Rival conectado! Carrera en línea.';
-   if(payload.matchStartAt && (!matchStartAt || String(payload.matchRaceId)!==String(matchRaceId))){
-     applySharedRaceStart(payload.matchStartAt,payload.matchRaceId);
+   const payloadStart=Number(payload.matchStartAt)||0;
+   const payloadRaceActive=payloadStart>0&&!payload.ended&&Date.now()<payloadStart+RACE_SECONDS*1000;
+   if(payloadRaceActive && (!matchStartAt || String(payload.matchRaceId)!==String(matchRaceId))){
+     applySharedRaceStart(payloadStart,payload.matchRaceId);
    }else if(payload.ready && !localReady && !matchStartAt){
      // Si el primer jugador ya está listo, el segundo entra automáticamente.
      localReady=true;
