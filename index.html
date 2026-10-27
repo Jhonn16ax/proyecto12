@@ -277,7 +277,6 @@ function resetPlayerCarAfterCrash(){
   distance=0;
   obstacles.forEach(o=>o.hit=false);
   steerVisual=0;collisionFlash=0;lastObstacleHit=-99999;
-  document.getElementById('score1').textContent='0';
 }
 function update(dt){
   if(!running)return;
