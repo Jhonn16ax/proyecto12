@@ -50,16 +50,16 @@ button,input{font:inherit}button{cursor:pointer;border:0;font-weight:900;letter-
 <section class="side-card"><h3 class="side-title">EN CARRERA <span class="subtle">EN VIVO</span></h3>
 <div class="score-row"><div class="driver"><div class="avatar" style="color:var(--cyan)">P1</div><div><b id="name1Display">AZUL</b><small>Distancia recorrida</small></div></div><div class="points" id="score1">0</div></div>
 <div class="score-row"><div class="driver"><div class="avatar" style="color:var(--pink)">P2</div><div><b id="name2Display">ESPERANDO…</b><small>Rival conectado</small></div></div><div class="points" id="score2">—</div></div>
-<div class="score-row"><span class="subtle">TIEMPO RESTANTE</span><div class="points" id="timer">60</div></div>
+<div class="score-row"><span class="subtle">TIEMPO RESTANTE</span><div class="points" id="timer">150</div></div>
 </section>
 <section class="side-card"><h3 class="side-title">HALL OF FAME <span class="subtle">TOP 5</span></h3><div id="leaderboard" class="leaderboard"><div class="empty">El ranking compartido aparecerá cuando conectes Supabase.</div></div><div class="status" id="dbStatus">Conecta Supabase para encontrar a otro piloto.</div></section>
-<section class="side-card"><h3 class="side-title">OBJETIVO</h3><p class="empty">La pista avanza sin repetir vueltas: curvas largas, chicanes, conos, barreras y manchas de aceite. Mantén pulsado acelerar y cambia de carril con izquierda y derecha. Cada choque reduce tu velocidad.</p></section>
+<section class="side-card"><h3 class="side-title">OBJETIVO</h3><p class="empty">Compite durante 2 minutos y 30 segundos. Si hay dos jugadores conectados, ambos comparten el mismo reloj; si uno choca, solo su carro vuelve al inicio y el tiempo sigue corriendo.</p></section>
 </aside>
 </main>
 <footer class="footer"><span>SPEED RIVALS © 2026 · BUILT FOR THE TRACK</span><span>LOCAL MULTIPLAYER · SUPABASE READY</span></footer>
 </div>
 <div class="overlay" id="setup">
-<div class="modal"><div class="eyebrow">NEON CIRCUIT / RACE SETUP</div><h2>¿QUIÉN DOMINA<br>LA <span>PISTA?</span></h2><p>Escribe los nombres de los dos pilotos y prepárate para la carrera. Jueguen en el mismo teclado.</p>
+<div class="modal"><div class="eyebrow">NEON CIRCUIT / RACE SETUP</div><h2>¿QUIÉN DOMINA<br>LA <span>PISTA?</span></h2><p>Escribe tu nombre. Cuando el segundo jugador se conecte en línea, ambos comienzan la misma carrera de 2 minutos y 30 segundos.</p>
 <div class="name-grid"><label>PILOTO 01<input id="name1" maxlength="16" value="AZUL" autocomplete="off"></label><label>PILOTO 02<input id="name2" maxlength="16" value="ROSA" autocomplete="off"></label></div>
 <div class="modal-actions"><button class="primary" id="confirmBtn">Entrar a la pista →</button></div></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -73,7 +73,9 @@ if (window.supabase && SUPABASE_URL.startsWith("https://") && SUPABASE_PUBLISHAB
 }
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
 const W=960,H=540,keys=new Set();
-let running=false,ended=false,crashed=false,last=0,elapsed=0,timeLeft=60,spawn=0,roadOffset=0,obstacles=[],particles=[];
+const RACE_SECONDS=150;
+let running=false,ended=false,crashed=false,last=0,elapsed=0,timeLeft=RACE_SECONDS,spawn=0,roadOffset=0,obstacles=[],particles=[];
+let localReady=false,matchStartAt=0,matchRaceId='',onlineRace=false;
 let names=['AZUL','ROSA'];
 // Cada navegador controla un solo coche. El segundo se dibuja sólo al recibir datos de otro jugador conectado.
 const cars=[
@@ -261,26 +263,25 @@ function draw(){
   if(collisionFlash>0){ctx.fillStyle='rgba(255,48,74,'+Math.min(.22,collisionFlash*.08)+')';ctx.fillRect(0,67,W,H-67)}
   if(!running){
     ctx.fillStyle='#061020b8';ctx.fillRect(0,67,W,H-67);ctx.textAlign='center';
-    ctx.fillStyle='#fff';ctx.font='900 36px system-ui';ctx.fillText(crashed?'¡CHOCASTE!':(ended?'FIN DE LA CARRERA':'GRAND PRIX'),W/2,238);
+    const waitingOnline=db&&localReady&&!matchStartAt;
+    ctx.fillStyle='#fff';ctx.font='900 36px system-ui';ctx.fillText(waitingOnline?'ESPERANDO AL RIVAL':(crashed?'¡CHOCASTE!':(ended?'FIN DE LA CARRERA':'GRAND PRIX')),W/2,238);
     ctx.fillStyle='#d5ff56';ctx.font='800 14px system-ui';
-    ctx.fillText(crashed?'LA CARRERA SE REINICIÓ · PULSA REINTENTAR':(ended?'DISTANCIA: '+Math.floor(cars[0].distance)+' METROS':'MANTÉN ↑ PARA ACELERAR · USA ← → PARA ESQUIVAR'),W/2,270);ctx.textAlign='left';
+    ctx.fillText(waitingOnline?'LA CARRERA EMPIEZA CUANDO SE CONECTE EL SEGUNDO JUGADOR':(crashed?'':(ended?'DISTANCIA: '+Math.floor(cars[0].distance)+' METROS':'MANTÉN ↑ PARA ACELERAR · USA ← → PARA ESQUIVAR')),W/2,270);ctx.textAlign='left';
   }
 }
-function resetAfterCrash(obstacle){
-  // Reinicio instantáneo: el coche aparece al principio y sigue avanzando sin interacción.
-  running=true;ended=false;crashed=false;
-  elapsed=0;timeLeft=60;distance=0;collisionFlash=0;lastObstacleHit=-99999;
-  cars[0].x=0;cars[0].lane=0;cars[0].speed=90;cars[0].distance=0;cars[0].progress=0;
+function resetPlayerCarAfterCrash(){
+  // Reinicia solo el vehículo de este navegador. El reloj compartido nunca se toca aquí.
+  const car=cars[0];
+  car.x=0;car.lane=0;car.speed=0;car.distance=0;car.progress=0;
+  distance=0;
   obstacles.forEach(o=>o.hit=false);
-  steerVisual=0;
+  steerVisual=0;collisionFlash=0;lastObstacleHit=-99999;
   document.getElementById('score1').textContent='0';
-  document.getElementById('timer').textContent='60';
-  document.getElementById('gameState').textContent='RACE LIVE';
-  document.getElementById('status').textContent='Mantén ↑ o W para acelerar. Usa ←/→ o A/D para esquivar conos, barreras y aceite.';
 }
 function update(dt){
   if(!running)return;
-  elapsed+=dt;timeLeft=Math.max(0,60-elapsed);
+  elapsed=Math.max(0,(Date.now()-matchStartAt)/1000);
+  timeLeft=Math.max(0,Math.ceil((matchStartAt+RACE_SECONDS*1000-Date.now())/1000));
   const car=cars[0];
   const left=keys.has('arrowleft')||keys.has('a');
   const right=keys.has('arrowright')||keys.has('d');
@@ -320,7 +321,7 @@ function update(dt){
     const touchesX=Math.abs(obstacleX-carScreenX)<(halfWidth*scale+18);
     const touchesY=Math.abs(obstacleY-carScreenY)<(halfHeight*scale+38);
     if(touchesX&&touchesY){
-      resetAfterCrash(o);
+      resetPlayerCarAfterCrash();
       return;
     }
   }
@@ -335,7 +336,8 @@ function syncPlayer(dt){
   syncElapsed+=dt;if(syncElapsed<.15)return;syncElapsed=0;
   liveChannel.send({type:'broadcast',event:'player-state',payload:{
     id:clientId,name:names[0]||'PILOTO',x:cars[0].x,progress:cars[0].progress,
-    distance:Math.round(cars[0].distance),running,updatedAt:Date.now()
+    distance:Math.round(cars[0].distance),speed:cars[0].speed,running,ended,ready:localReady,
+    matchStartAt,matchRaceId,updatedAt:Date.now()
   }}).catch(()=>{});
   if(remoteOnline&&Date.now()-remoteLastSeen>3500){
     remoteOnline=false;remoteState=null;
@@ -349,19 +351,67 @@ function syncPlayer(dt){
 function frame(t){
   requestAnimationFrame(frame);
   const dt=Math.min(.035,(t-last)/1000||0);last=t;
-  try{if(running)update(dt);syncPlayer(dt);draw()}
-  catch(err){console.error('Error del juego:',err);document.getElementById('status').textContent='Error del juego. Recarga la página para continuar.';}
+  try{
+    if(matchStartAt && !running && !ended && localReady && Date.now()>=matchStartAt){
+      running=true;crashed=false;
+      document.getElementById('gameState').textContent='RACE LIVE';
+      document.getElementById('status').textContent='¡Carrera iniciada! Tienen 2 minutos y 30 segundos. Si chocas, solo tu carro vuelve al inicio.';
+    }
+    if(running)update(dt);
+    syncPlayer(dt);draw();
+  }catch(err){console.error('Error del juego:',err);document.getElementById('status').textContent='Error del juego. Recarga la página para continuar.';}
 }
 requestAnimationFrame(frame);
-function start(){
-  keys.clear();document.getElementById('setup').classList.add('hidden');
-  running=true;ended=false;crashed=false;elapsed=0;timeLeft=60;distance=0;collisionFlash=0;lastObstacleHit=-99999;
+function resetPlayerForNewRace(){
   cars[0].x=0;cars[0].lane=0;cars[0].speed=0;cars[0].distance=0;cars[0].progress=0;
+  distance=0;elapsed=0;timeLeft=RACE_SECONDS;collisionFlash=0;lastObstacleHit=-99999;steerVisual=0;
   obstacles.forEach(o=>o.hit=false);
-  document.getElementById('gameState').textContent='RACE LIVE';
+  document.getElementById('score1').textContent='0';
+  document.getElementById('timer').textContent=String(RACE_SECONDS);
+}
+function applySharedRaceStart(startAt,raceId){
+  const at=Number(startAt);
+  if(!Number.isFinite(at)||at<=0)return;
+  if(matchStartAt===at && matchRaceId===raceId)return;
+  matchStartAt=at;matchRaceId=String(raceId||('race-'+at));onlineRace=!!db;localReady=true;
+  keys.clear();running=false;ended=false;crashed=false;
+  document.getElementById('setup').classList.add('hidden');
+  resetPlayerForNewRace();
+  document.getElementById('gameState').textContent='SYNC';
   document.getElementById('startBtn').textContent='Carrera en curso';
   document.getElementById('startBtn').disabled=true;
-  document.getElementById('status').textContent='Mantén ↑ o W para acelerar. Usa ←/→ o A/D para esquivar conos, barreras y aceite.';
+  document.getElementById('status').textContent='¡Rival conectado! La carrera compartida comienza en breve.';
+  draw();
+}
+function tryStartOnlineRace(){
+  if(!db||!liveChannel||!localReady||!remoteOnline||matchStartAt||!remoteState)return;
+  // Solo un navegador inicia la cuenta atrás compartida: evita dos relojes distintos.
+  if(String(clientId).localeCompare(String(remoteState.id))>=0)return;
+  const startAt=Date.now()+1800;
+  const raceId='grand-prix-'+startAt+'-'+clientId;
+  applySharedRaceStart(startAt,raceId);
+  liveChannel.send({type:'broadcast',event:'race-start',payload:{startAt,raceId,duration:RACE_SECONDS}}).catch(()=>{});
+}
+function start(){
+  keys.clear();document.getElementById('setup').classList.add('hidden');
+  localReady=true;ended=false;crashed=false;
+  document.getElementById('startBtn').textContent='Esperando rival…';
+  document.getElementById('startBtn').disabled=true;
+  if(db){
+    onlineRace=true;running=false;matchStartAt=0;matchRaceId='';
+    resetPlayerForNewRace();
+    document.getElementById('gameState').textContent='WAITING';
+    document.getElementById('status').textContent='Esperando al segundo jugador. El reloj de 2:30 empezará cuando se conecte.';
+    if(remoteState&&remoteState.matchStartAt){
+      applySharedRaceStart(remoteState.matchStartAt,remoteState.matchRaceId);
+    }else tryStartOnlineRace();
+    draw();return;
+  }
+  // Sin Supabase configurado, conserva el modo de práctica individual.
+  onlineRace=false;matchStartAt=Date.now();matchRaceId='solo-'+clientId+'-'+matchStartAt;
+  resetPlayerForNewRace();running=true;
+  document.getElementById('gameState').textContent='RACE LIVE';
+  document.getElementById('status').textContent='Modo práctica: 2 minutos y 30 segundos. Mantén ↑/W para acelerar y ←/→ o A/D para esquivar.';
   draw();
 }
 function finishRace(){
@@ -375,7 +425,7 @@ function restart(){
   running=false;ended=false;keys.clear();
   document.getElementById('setup').classList.remove('hidden');document.getElementById('gameState').textContent='STANDBY';
   document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Iniciar carrera';
-  timeLeft=60;elapsed=0;distance=0;cars[0].distance=0;cars[0].speed=0;cars[0].x=0;cars[0].progress=0;
+  localReady=false;matchStartAt=0;matchRaceId='';onlineRace=false;timeLeft=RACE_SECONDS;elapsed=0;distance=0;cars[0].distance=0;cars[0].speed=0;cars[0].x=0;cars[0].progress=0;
   obstacles.forEach(o=>o.hit=false);draw();
 }
 document.getElementById('confirmBtn').addEventListener('click',()=>{
@@ -424,8 +474,24 @@ function connectLiveRace(){
    document.getElementById('score2').textContent=Math.floor(Number(payload.distance)||0);
    document.getElementById('player2Controls').classList.remove('hidden');
    document.getElementById('player2Pad').classList.remove('hidden');
-   document.getElementById('dbStatus').textContent='¡Rival conectado! Su coche aparece en tu pista.';
-   document.getElementById('status').textContent='Rival conectado: '+String(payload.name||'RIVAL')+'. Compitan desde dos navegadores.';
+   document.getElementById('dbStatus').textContent='¡Rival conectado! Carrera en línea.';
+   if(payload.matchStartAt && (!matchStartAt || String(payload.matchRaceId)!==String(matchRaceId))){
+     applySharedRaceStart(payload.matchStartAt,payload.matchRaceId);
+   }else if(payload.ready && !localReady && !matchStartAt){
+     // Si el primer jugador ya está listo, el segundo entra automáticamente.
+     localReady=true;
+     document.getElementById('setup').classList.add('hidden');
+     document.getElementById('startBtn').textContent='Esperando sincronización…';
+     document.getElementById('startBtn').disabled=true;
+     document.getElementById('status').textContent='Jugador encontrado. Sincronizando la salida…';
+   }
+   tryStartOnlineRace();
+   if(!matchStartAt && localReady){
+     document.getElementById('status').textContent='Rival conectado. Preparando salida compartida…';
+   }
+ });
+ liveChannel.on('broadcast',{event:'race-start'},({payload})=>{
+   if(payload&&payload.startAt)applySharedRaceStart(payload.startAt,payload.raceId);
  });
  liveChannel.subscribe(status=>{
    if(status==='SUBSCRIBED'){
