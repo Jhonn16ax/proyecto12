@@ -86,7 +86,7 @@ function resizeCanvas(){const rect=canvas.getBoundingClientRect(); if(!rect.widt
 window.addEventListener('resize',resizeCanvas);
 function roundedRect(x,y,w,h,r,fill,stroke){ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.stroke()}}
 function poly(points,fill){ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);ctx.closePath();ctx.fillStyle=fill;ctx.fill()}
-// Endless Grand Prix: la carretera avanza hacia el jugador; no hay circuito oval ni turbo.
+// Endless Grand Prix: la carretera avanza hacia el jugador, sin vueltas repetitivas.
 const HORIZON=105, CAR_Y=438, VIEW=1450, ROAD_MAX_SPEED=310;
 let steerVisual=0, collisionFlash=0, obstacleCursor=0, lastObstacleHit=-99999;
 function roadCurve(world){
@@ -291,7 +291,7 @@ function update(dt){
   car.distance+=car.speed*dt*1.18;
   distance=car.distance;
   car.progress=distance;
-  // Choques: el obstáculo que llega al coche penaliza la velocidad; no hay turbo ni botón de freno.
+  // Choques: el obstáculo que llega al coche penaliza la velocidad.
   for(const o of obstacles){
     if(o.hit||o.d<oldDistance-10||o.d>car.distance+10)continue;
     if(Math.abs(car.x-o.lane)<.26){
