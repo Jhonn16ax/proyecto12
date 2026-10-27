@@ -310,7 +310,7 @@ function update(dt){
   for(const o of obstacles){
     const ahead=o.d-distance;
     if(o.hit||ahead>VIEW)continue;
-    if(ahead < -45){o.hit=true;continue;}
+    if(ahead < -38){o.hit=true;continue;}
     const obstacleY=roadY(ahead);
     const p=Math.max(.08,Math.min(1,(obstacleY-HORIZON)/(CAR_Y-HORIZON)));
     const scale=.16+p*1.02;
