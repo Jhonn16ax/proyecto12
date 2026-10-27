@@ -293,7 +293,7 @@ function update(dt){
   car.progress=distance;
   // Choques: el obstáculo que llega al coche penaliza la velocidad; no hay turbo ni botón de freno.
   for(const o of obstacles){
-    if(o.hit||o.d<oldDistance||o.d>car.distance+42)continue;
+    if(o.hit||o.d<oldDistance-10||o.d>car.distance+10)continue;
     if(Math.abs(car.x-o.lane)<.26){
       o.hit=true;car.speed*=o.type==='barrier'?.34:.52;collisionFlash=.9;
       document.getElementById('status').textContent=o.type==='oil'?'¡Aceite! El carro perdió agarre.':'¡Choque! Esquiva los obstáculos moviéndote a izquierda o derecha.';
