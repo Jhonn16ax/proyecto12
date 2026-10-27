@@ -267,17 +267,16 @@ function draw(){
   }
 }
 function resetAfterCrash(obstacle){
-  // Reinicio automático: no pausa el juego, no muestra avisos ni pide pulsar un botón.
+  // Reinicio instantáneo: el coche aparece al principio y sigue avanzando sin interacción.
   running=true;ended=false;crashed=false;
   elapsed=0;timeLeft=60;distance=0;collisionFlash=0;lastObstacleHit=-99999;
-  cars[0].x=0;cars[0].lane=0;cars[0].speed=0;cars[0].distance=0;cars[0].progress=0;
+  cars[0].x=0;cars[0].lane=0;cars[0].speed=90;cars[0].distance=0;cars[0].progress=0;
   obstacles.forEach(o=>o.hit=false);
   steerVisual=0;
   document.getElementById('score1').textContent='0';
   document.getElementById('timer').textContent='60';
   document.getElementById('gameState').textContent='RACE LIVE';
-  document.getElementById('startBtn').disabled=true;
-  document.getElementById('startBtn').textContent='Carrera en curso';
+  document.getElementById('status').textContent='Mantén ↑ o W para acelerar. Usa ←/→ o A/D para esquivar conos, barreras y aceite.';
 }
 function update(dt){
   if(!running)return;
@@ -304,17 +303,26 @@ function update(dt){
   car.distance+=car.speed*dt*1.18;
   distance=car.distance;
   car.progress=distance;
-  // Si el carro toca un obstáculo, reinicia la carrera completa desde el inicio.
+  // Detección basada en las posiciones visibles de los sprites, no solo en la distancia.
+  // Así el choque ocurre cuando el obstáculo realmente toca el coche en pantalla.
+  const carScreenX=roadCenter(distance,0)+car.x*halfRoad(CAR_Y)*.72;
+  const carScreenY=CAR_Y-16;
   for(const o of obstacles){
-    const ahead=o.d-car.distance;
-    if(o.hit||ahead>34)continue;
-    if(ahead < -35){o.hit=true;continue;}
-    // La zona de choque coincide con los últimos metros visibles del obstáculo.
-    if(ahead<=34&&Math.abs(car.x-o.lane)<.30){
+    const ahead=o.d-distance;
+    if(o.hit||ahead>VIEW)continue;
+    if(ahead < -45){o.hit=true;continue;}
+    const obstacleY=roadY(ahead);
+    const p=Math.max(.08,Math.min(1,(obstacleY-HORIZON)/(CAR_Y-HORIZON)));
+    const scale=.16+p*1.02;
+    const obstacleX=roadCenter(distance,ahead)+o.lane*halfRoad(obstacleY)*.68;
+    const halfWidth=o.type==='barrier'?28:o.type==='oil'?30:16;
+    const halfHeight=o.type==='barrier'?20:o.type==='oil'?12:25;
+    const touchesX=Math.abs(obstacleX-carScreenX)<(halfWidth*scale+18);
+    const touchesY=Math.abs(obstacleY-carScreenY)<(halfHeight*scale+38);
+    if(touchesX&&touchesY){
       resetAfterCrash(o);
       return;
     }
-    if(ahead < -12)o.hit=true;
   }
   if(collisionFlash>0)collisionFlash=Math.max(0,collisionFlash-dt);
   document.getElementById('score1').textContent=Math.floor(car.distance);
