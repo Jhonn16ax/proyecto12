@@ -77,8 +77,8 @@ let running=false,ended=false,last=0,elapsed=0,timeLeft=60,spawn=0,roadOffset=0,
 let names=['AZUL','ROSA'];
 // Cada navegador controla un solo coche. El segundo se dibuja sólo al recibir datos de otro jugador conectado.
 const cars=[
- {x:-.25,lane:-.25,color:'#54f6ff',accent:'#e4ffff',speed:0,distance:0,boost:100,boostReady:true,turboActive:false,boostCooldown:0,hit:0,progress:-Math.PI/2,steer:0},
- {x:.25,lane:.25,color:'#ff4da6',accent:'#ffe2f1',speed:0,distance:0,boost:100,hit:0,progress:-Math.PI/2+.09,steer:0}
+ {x:0,lane:0,color:'#54f6ff',accent:'#e4ffff',speed:0,distance:0,hit:0,progress:0,steer:0},
+ {x:.2,lane:.2,color:'#ff4da6',accent:'#ffe2f1',speed:0,distance:0,hit:0,progress:0,steer:0}
 ];
 const clientId=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+Math.random();
 let liveChannel=null,remoteState=null,remoteLastSeen=0,syncElapsed=0,remoteOnline=false;
