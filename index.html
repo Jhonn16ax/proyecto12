@@ -79,8 +79,8 @@ let localReady=false,matchStartAt=0,matchRaceId='',onlineRace=false;
 let names=['AZUL','ROSA'];
 // Cada navegador controla un solo coche. El segundo se dibuja sólo al recibir datos de otro jugador conectado.
 const cars=[
- {x:0,lane:0,color:'#54f6ff',accent:'#e4ffff',speed:0,distance:0,hit:0,progress:0,steer:0},
- {x:.2,lane:.2,color:'#ff4da6',accent:'#ffe2f1',speed:0,distance:0,hit:0,progress:0,steer:0}
+ {x:0,lane:0,color:'#54f6ff',accent:'#e4ffff',speed:0,distance:0,totalDistance:0,hit:0,progress:0,steer:0},
+ {x:.2,lane:.2,color:'#ff4da6',accent:'#ffe2f1',speed:0,distance:0,totalDistance:0,hit:0,progress:0,steer:0}
 ];
 const clientId=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+Math.random();
 let liveChannel=null,remoteState=null,remoteLastSeen=0,syncElapsed=0,remoteOnline=false;
@@ -255,7 +255,7 @@ function draw(){
   ctx.fillStyle='#071326e8';ctx.fillRect(0,0,W,67);
   ctx.fillStyle='#54f6ff';ctx.font='900 13px system-ui';ctx.fillText('SPEED RIVALS  /  GRAND PRIX',20,22);
   ctx.fillStyle='#fff';ctx.font='900 22px system-ui';ctx.fillText(Math.round(cars[0].speed*1.08)+' KM/H',20,50);
-  ctx.fillStyle='#d5ff56';ctx.font='900 20px system-ui';ctx.fillText(Math.floor(cars[0].distance)+' m',280,48);
+  ctx.fillStyle='#d5ff56';ctx.font='900 20px system-ui';ctx.fillText(Math.floor(cars[0].totalDistance)+' m',280,48);
   ctx.fillStyle='#d8e4f7';ctx.font='800 16px system-ui';ctx.fillText('TIEMPO '+formatRaceTime(timeLeft),480,46);
   ctx.fillStyle='#667a98';roundedRect(680,30,250,10,5,'#34425a');
   roundedRect(680,30,250*Math.min(1,cars[0].speed/ROAD_MAX_SPEED),10,5,'#54f6ff');
@@ -266,13 +266,14 @@ function draw(){
     const waitingOnline=db&&localReady&&!matchStartAt;
     ctx.fillStyle='#fff';ctx.font='900 36px system-ui';ctx.fillText(waitingOnline?'ESPERANDO AL RIVAL':(crashed?'¡CHOCASTE!':(ended?'FIN DE LA CARRERA':'GRAND PRIX')),W/2,238);
     ctx.fillStyle='#d5ff56';ctx.font='800 14px system-ui';
-    ctx.fillText(waitingOnline?'LA CARRERA EMPIEZA CUANDO SE CONECTE EL SEGUNDO JUGADOR':(crashed?'':(ended?'DISTANCIA: '+Math.floor(cars[0].distance)+' METROS':'MANTÉN ↑ PARA ACELERAR · USA ← → PARA ESQUIVAR')),W/2,270);ctx.textAlign='left';
+    ctx.fillText(waitingOnline?'LA CARRERA EMPIEZA CUANDO SE CONECTE EL SEGUNDO JUGADOR':(crashed?'':(ended?'DISTANCIA: '+Math.floor(cars[0].totalDistance)+' METROS':'MANTÉN ↑ PARA ACELERAR · USA ← → PARA ESQUIVAR')),W/2,270);ctx.textAlign='left';
   }
 }
 function resetPlayerCarAfterCrash(){
   // Reinicia solo el vehículo de este navegador. El reloj compartido nunca se toca aquí.
   const car=cars[0];
   car.x=0;car.lane=0;car.speed=0;car.distance=0;car.progress=0;
+  // totalDistance se conserva: es la puntuación acumulada de toda la carrera.
   distance=0;
   obstacles.forEach(o=>o.hit=false);
   steerVisual=0;collisionFlash=0;lastObstacleHit=-99999;
@@ -301,7 +302,9 @@ function update(dt){
     }
   }
   const oldDistance=car.distance;
-  car.distance+=car.speed*dt*1.18;
+  const movement=car.speed*dt*1.18;
+  car.distance+=movement;
+  car.totalDistance+=movement;
   distance=car.distance;
   car.progress=distance;
   // Detección basada en las posiciones visibles de los sprites, no solo en la distancia.
@@ -326,7 +329,7 @@ function update(dt){
     }
   }
   if(collisionFlash>0)collisionFlash=Math.max(0,collisionFlash-dt);
-  document.getElementById('score1').textContent=Math.floor(car.distance);
+  document.getElementById('score1').textContent=Math.floor(car.totalDistance);
   document.getElementById('score2').textContent=remoteOnline&&remoteState?Math.floor(Number(remoteState.distance)||0):'—';
   document.getElementById('timer').textContent=formatRaceTime(timeLeft);
   if(timeLeft<=0)finishRace();
@@ -336,7 +339,7 @@ function syncPlayer(dt){
   syncElapsed+=dt;if(syncElapsed<.15)return;syncElapsed=0;
   liveChannel.send({type:'broadcast',event:'player-state',payload:{
     id:clientId,name:names[0]||'PILOTO',x:cars[0].x,progress:cars[0].progress,
-    distance:Math.round(cars[0].distance),speed:cars[0].speed,running,ended,ready:localReady,
+    distance:Math.round(cars[0].totalDistance),speed:cars[0].speed,running,ended,ready:localReady,
     matchStartAt,matchRaceId,updatedAt:Date.now()
   }}).catch(()=>{});
   if(remoteOnline&&Date.now()-remoteLastSeen>3500){
@@ -364,7 +367,7 @@ function frame(t){
 requestAnimationFrame(frame);
 function formatRaceTime(seconds){const total=Math.max(0,Math.ceil(seconds));return Math.floor(total/60)+':'+String(total%60).padStart(2,'0');}
 function resetPlayerForNewRace(){
-  cars[0].x=0;cars[0].lane=0;cars[0].speed=0;cars[0].distance=0;cars[0].progress=0;
+  cars[0].x=0;cars[0].lane=0;cars[0].speed=0;cars[0].distance=0;cars[0].totalDistance=0;cars[0].progress=0;
   distance=0;elapsed=0;timeLeft=RACE_SECONDS;collisionFlash=0;lastObstacleHit=-99999;steerVisual=0;
   obstacles.forEach(o=>o.hit=false);
   document.getElementById('score1').textContent='0';
@@ -418,8 +421,8 @@ function start(){
 function finishRace(){
   running=false;ended=true;crashed=false;document.getElementById('gameState').textContent='FINISH';
   document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Otra carrera';
-  const winner=remoteOnline&&remoteState&&Number(remoteState.distance)>cars[0].distance?names[1]:names[0];
-  document.getElementById('status').textContent='Carrera terminada. Recorriste '+Math.floor(cars[0].distance)+' metros. Guardando resultado si Supabase está conectado…';
+  const winner=remoteOnline&&remoteState&&Number(remoteState.distance)>cars[0].totalDistance?names[1]:names[0];
+  document.getElementById('status').textContent='Carrera terminada. Recorriste '+Math.floor(cars[0].totalDistance)+' metros. Guardando resultado si Supabase está conectado…';
   saveResult(winner);
   // Cierra esta sesión compartida para que la siguiente carrera pueda crear un nuevo reloj.
   localReady=false;matchStartAt=0;matchRaceId='';
@@ -428,7 +431,7 @@ function restart(){
   running=false;ended=false;keys.clear();
   document.getElementById('setup').classList.remove('hidden');document.getElementById('gameState').textContent='STANDBY';
   document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Iniciar carrera';
-  localReady=false;matchStartAt=0;matchRaceId='';onlineRace=false;timeLeft=RACE_SECONDS;elapsed=0;distance=0;cars[0].distance=0;cars[0].speed=0;cars[0].x=0;cars[0].progress=0;document.getElementById('timer').textContent=formatRaceTime(RACE_SECONDS);
+  localReady=false;matchStartAt=0;matchRaceId='';onlineRace=false;timeLeft=RACE_SECONDS;elapsed=0;distance=0;cars[0].distance=0;cars[0].totalDistance=0;cars[0].speed=0;cars[0].x=0;cars[0].progress=0;document.getElementById('timer').textContent=formatRaceTime(RACE_SECONDS);
   obstacles.forEach(o=>o.hit=false);draw();
 }
 document.getElementById('confirmBtn').addEventListener('click',()=>{
@@ -466,7 +469,7 @@ bindHoldButton('p1left','arrowleft');bindHoldButton('p1right','arrowright');bind
 let distance=0;
 async function loadLeaderboard(){if(!db){document.getElementById('dbStatus').textContent='Pendiente: configura Supabase para ranking compartido.';return}const {data,error}=await db.from('race_results').select('winner, distance, created_at').order('distance',{ascending:false}).limit(5);if(error){document.getElementById('dbStatus').textContent='Supabase conectado, revisa la tabla/políticas: '+error.message;return}document.getElementById('leaderboard').innerHTML=data.length?data.map((r,i)=>'<div class="leader-item"><span class="rank">0'+(i+1)+'</span><span class="leader-name">'+escapeHtml(r.winner)+'</span><span class="leader-time">'+Math.round(r.distance)+' m</span></div>').join(''):'<div class="empty">Todavía no hay carreras guardadas.</div>';document.getElementById('dbStatus').textContent='Ranking sincronizado con la base de datos.'}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function saveResult(winner){if(!db){document.getElementById('dbStatus').textContent='Resultado solo en esta partida. Configura Supabase para compartirlo entre dispositivos.';return}const maxDistance=Math.max(...cars.map(c=>Math.round(c.distance)));const {error}=await db.from('race_results').insert({winner, distance:maxDistance, player_one:names[0], player_two:names[1]});if(error){document.getElementById('dbStatus').textContent='No se pudo guardar: '+error.message;return}await loadLeaderboard();document.getElementById('status').textContent+=' Resultado guardado en la nube.'}
+async function saveResult(winner){if(!db){document.getElementById('dbStatus').textContent='Resultado solo en esta partida. Configura Supabase para compartirlo entre dispositivos.';return}const maxDistance=Math.max(...cars.map(c=>Math.round(c.totalDistance||0)));const {error}=await db.from('race_results').insert({winner, distance:maxDistance, player_one:names[0], player_two:names[1]});if(error){document.getElementById('dbStatus').textContent='No se pudo guardar: '+error.message;return}await loadLeaderboard();document.getElementById('status').textContent+=' Resultado guardado en la nube.'}
 function connectLiveRace(){
  if(!db){document.getElementById('dbStatus').textContent='Configura URL y publishable key de Supabase para conectar jugadores.';return}
  liveChannel=db.channel('speed-rivals-lobby',{config:{broadcast:{self:false}}});
