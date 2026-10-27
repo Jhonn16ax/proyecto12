@@ -267,20 +267,17 @@ function draw(){
   }
 }
 function resetAfterCrash(obstacle){
-  // El choque corta la carrera y coloca todo en cero. El jugador debe volver a iniciar.
-  keys.clear();
-  running=false;ended=true;crashed=true;
-  elapsed=0;timeLeft=60;distance=0;collisionFlash=1.2;lastObstacleHit=-99999;
+  // Reinicio automático: no pausa el juego, no muestra avisos ni pide pulsar un botón.
+  running=true;ended=false;crashed=false;
+  elapsed=0;timeLeft=60;distance=0;collisionFlash=0;lastObstacleHit=-99999;
   cars[0].x=0;cars[0].lane=0;cars[0].speed=0;cars[0].distance=0;cars[0].progress=0;
   obstacles.forEach(o=>o.hit=false);
   steerVisual=0;
   document.getElementById('score1').textContent='0';
   document.getElementById('timer').textContent='60';
-  document.getElementById('gameState').textContent='CRASH';
-  document.getElementById('startBtn').disabled=false;
-  document.getElementById('startBtn').textContent='▶ Reintentar carrera';
-  document.getElementById('status').textContent='¡Choque! Volviste al principio. Pulsa «Reintentar carrera» para comenzar desde cero.';
-  draw();
+  document.getElementById('gameState').textContent='RACE LIVE';
+  document.getElementById('startBtn').disabled=true;
+  document.getElementById('startBtn').textContent='Carrera en curso';
 }
 function update(dt){
   if(!running)return;
