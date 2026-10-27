@@ -143,54 +143,71 @@ function drawBackground(){
   ctx.fillStyle='#326b52';ctx.beginPath();ctx.moveTo(0,178);
   for(let x=0;x<=W;x+=40)ctx.lineTo(x,145+Math.sin(x*.012+1.8)*23+Math.sin(x*.032)*8);
   ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();ctx.fill();
-  // Laderas verdes junto a la carretera.
+  // Césped continuo; pequeños arbustos aportan textura sin franjas horizontales.
   ctx.fillStyle='#397e43';ctx.fillRect(0,HORIZON,W,H-HORIZON);
   for(let i=0;i<70;i++){
     const x=(i*137+Math.floor(distance/9)%W)%W;
     const y=HORIZON+14+(i*37)%240;
-    ctx.fillStyle=i%2?'#2b693b':'#4b914b';
+    ctx.fillStyle=i%2?'#347641':'#43884a';
     ctx.beginPath();ctx.ellipse(x,y,8+(i%4)*2,5+(i%3),0,0,Math.PI*2);ctx.fill();
   }
 }
 function drawRoad(){
-  // Franjas transversales y los bordes cambian según la curva de cada tramo.
-  const bands=62;
+  // Asfalto como una sola figura continua para eliminar uniones entre segmentos.
+  const bands=84, samples=[];
+  for(let i=0;i<=bands;i++){
+    const p=i/bands;
+    const y=HORIZON+Math.pow(p,1.45)*(CAR_Y-HORIZON);
+    const ahead=VIEW*(1-p);
+    const center=roadCenter(distance,ahead);
+    const half=34+257*p;
+    samples.push({y,ahead,center,half,left:center-half,right:center+half});
+  }
+
+  // El césped queda continuo; no se dibujan franjas horizontales desplazándose por la escena.
+  ctx.beginPath();
+  ctx.moveTo(samples[0].left,samples[0].y);
+  for(let i=1;i<samples.length;i++)ctx.lineTo(samples[i].left,samples[i].y);
+  for(let i=samples.length-1;i>=0;i--)ctx.lineTo(samples[i].right,samples[i].y);
+  ctx.closePath();
+  ctx.fillStyle='#38414b';
+  ctx.fill();
+
+  // Líneas laterales continuas, sin pequeñas costuras entre tramos.
+  ctx.strokeStyle='#f5f7e8';ctx.lineWidth=2;
+  ctx.beginPath();
+  samples.forEach((p,i)=>{if(i===0)ctx.moveTo(p.left+7,p.y);else ctx.lineTo(p.left+7,p.y)});
+  ctx.stroke();
+  ctx.beginPath();
+  samples.forEach((p,i)=>{if(i===0)ctx.moveTo(p.right-7,p.y);else ctx.lineTo(p.right-7,p.y)});
+  ctx.stroke();
+
+  // Bordes de seguridad rojos y blancos. Estas pequeñas marcas son intencionales.
   for(let i=0;i<bands;i++){
-    const p0=i/bands,p1=(i+1)/bands;
-    const y0=HORIZON+Math.pow(p0,1.45)*(CAR_Y-HORIZON);
-    const y1=HORIZON+Math.pow(p1,1.45)*(CAR_Y-HORIZON);
-    const ahead0=VIEW*(1-p0),ahead1=VIEW*(1-p1);
-    const c0=roadCenter(distance,ahead0),c1=roadCenter(distance,ahead1);
-    const h0=34+257*p0,h1=34+257*p1;
-    const stripe=Math.floor((distance+ahead1)/52)%2;
-    // césped a los dos lados con movimiento hacia abajo
-    ctx.fillStyle=stripe?'#397b42':'#43884a';
-    ctx.beginPath();ctx.moveTo(0,y0);ctx.lineTo(W,y0);ctx.lineTo(W,y1);ctx.lineTo(0,y1);ctx.closePath();ctx.fill();
-    // Pianos rojos y blancos en ambos bordes
-    poly([[c0-h0-10,y0],[c0-h0+3,y0],[c1-h1+3,y1],[c1-h1-10,y1]],stripe?'#f4f3e7':'#ed3c50');
-    poly([[c0+h0-3,y0],[c0+h0+10,y0],[c1+h1+10,y1],[c1+h1-3,y1]],stripe?'#ed3c50':'#f4f3e7');
-    poly([[c0-h0,y0],[c0+h0,y0],[c1+h1,y1],[c1-h1,y1]],stripe?'#333b46':'#39424d');
-    // Línea lateral fina
-    ctx.strokeStyle='#f5f7e8';ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(c0-h0+7,y0);ctx.lineTo(c1-h1+7,y1);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(c0+h0-7,y0);ctx.lineTo(c1+h1-7,y1);ctx.stroke();
-    // Línea central discontinua; se alarga visualmente al acercarse
-    if(Math.floor((distance+ahead1)/110)%2===0){
-      const dash=Math.max(1,2.3*p1);
-      poly([[c0-dash,y0],[c0+dash,y0],[c1+dash*1.2,y1],[c1-dash*1.2,y1]],'#e8e8d0');
+    const a=samples[i],b=samples[i+1];
+    const stripe=Math.floor((distance+b.ahead)/52)%2;
+    poly([[a.left-10,a.y],[a.left+3,a.y],[b.left+3,b.y],[b.left-10,b.y]],stripe?'#f4f3e7':'#ed3c50');
+    poly([[a.right-3,a.y],[a.right+10,a.y],[b.right+10,b.y],[b.right-3,b.y]],stripe?'#ed3c50':'#f4f3e7');
+
+    // Marcas centrales discontinuas, como en una carretera real.
+    if(Math.floor((distance+b.ahead)/110)%2===0){
+      const dash=Math.max(1,2.3*(i+1)/bands);
+      poly([[a.center-dash,a.y],[a.center+dash,a.y],[b.center+dash*1.2,b.y],[b.center-dash*1.2,b.y]],'#e8e8d0');
     }
   }
-  // Vallas, postes reflectantes y anuncios a los lados de una pista larga.
+
+  // Vallas y postes a los lados de la carretera.
   for(let i=0;i<19;i++){
     const ahead=VIEW-(i/18)*VIEW;
     if(ahead<30)continue;
-    const y=roadY(ahead),c=roadCenter(distance,ahead),hw=halfRoad(y),scale=.16+(1-ahead/VIEW)*.9;
+    const y=roadY(ahead),center=roadCenter(distance,ahead),hw=halfRoad(y),scale=.16+(1-ahead/VIEW)*.9;
     const side=i%2===0?-1:1;
-    const x=c+side*(hw+18+Math.sin((distance+ahead)/190)*9);
+    const x=center+side*(hw+18+Math.sin((distance+ahead)/190)*9);
     ctx.fillStyle='#d6e0e7';ctx.fillRect(x-2*scale,y-13*scale,4*scale,15*scale);
     ctx.fillStyle=i%2?'#ff4da6':'#54f6ff';ctx.fillRect(x-3*scale,y-13*scale,6*scale,4*scale);
   }
-  // Señales grandes visibles en curvas a lo lejos.
+
+  // Señal grande visible antes de las curvas.
   const signDistance=350+Math.floor(distance/650)*650;
   const ahead=signDistance-distance;
   if(ahead>50&&ahead<VIEW){
