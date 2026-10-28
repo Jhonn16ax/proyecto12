@@ -25,7 +25,7 @@ button,input{font:inherit}button{cursor:pointer;border:0;font-weight:900;letter-
 .actions{display:flex;gap:10px;margin-top:15px;flex-wrap:wrap}.drive-pad{display:flex;gap:10px;justify-content:center;margin-top:14px}.drive-pad button{flex:1;min-width:95px;max-width:180px;padding:12px 8px;border-radius:10px;background:#111f3a;color:#e7f4ff;border:1px solid #385274;touch-action:none}.drive-pad button:active{background:#224064;transform:scale(.98)}.primary{background:linear-gradient(100deg,#51f1ff,#83fbdb);color:#061021;padding:13px 20px;border-radius:11px;box-shadow:0 6px 24px #35dff52a}.secondary{background:#121e38;color:#dbe8ff;border:1px solid #2a3d61;padding:12px 16px;border-radius:11px}
 .side{display:flex;flex-direction:column;gap:15px}.side-card{padding:18px}.side-title{display:flex;justify-content:space-between;align-items:center;margin:0 0 16px;font-size:11px;letter-spacing:.16em}.subtle{font-size:10px;color:#8395b8;letter-spacing:.08em}
 .score-row{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid #ffffff0e}.score-row:last-child{border:0}.driver{display:flex;align-items:center;gap:10px}.avatar{width:35px;height:35px;border-radius:10px;display:grid;place-items:center;font-size:12px;font-weight:1000;background:#152a43}.driver small{display:block;color:#8494b6;font-size:10px;margin-top:3px}.points{font-size:20px;font-weight:950;font-variant-numeric:tabular-nums}.leaderboard{font-size:12px}.leader-item{display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid #ffffff0e}.rank{color:var(--cyan);width:18px;font-weight:900}.leader-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.leader-time{color:#a9b8d6;font-variant-numeric:tabular-nums}.empty{color:#8190ae;line-height:1.6;font-size:12px}.status{font-size:11px;color:#8fa1c4;margin-top:10px;line-height:1.5}.footer{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#61718f;font-size:10px;margin:17px 3px 0;letter-spacing:.05em}
-.overlay{position:fixed;inset:0;background:#030714c9;backdrop-filter:blur(9px);display:grid;place-items:center;padding:20px;z-index:5}.modal{width:min(490px,100%);background:linear-gradient(150deg,#142342,#070d1d);border:1px solid #385274;border-radius:24px;padding:clamp(22px,5vw,36px);box-shadow:0 30px 100px #0009}.modal .eyebrow{margin-bottom:10px}.modal h2{font-size:clamp(28px,5vw,42px);letter-spacing:-.06em;margin:0 0 10px;line-height:1}.modal h2 span{color:var(--cyan)}.modal p{color:#a8b6d2;line-height:1.65;font-size:13px}.name-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}.name-grid label{font-size:10px;letter-spacing:.1em;color:#a8b6d2}.name-grid input{display:block;width:100%;margin-top:7px;background:#080f20;border:1px solid #344768;border-radius:9px;color:white;padding:12px;outline:none}.name-grid input:focus{border-color:var(--cyan)}.modal-actions{display:flex;gap:10px;flex-wrap:wrap}.hidden{display:none!important}
+.overlay{position:fixed;inset:0;background:#030714c9;backdrop-filter:blur(9px);display:grid;place-items:center;padding:20px;z-index:5}.modal{width:min(490px,100%);background:linear-gradient(150deg,#142342,#070d1d);border:1px solid #385274;border-radius:24px;padding:clamp(22px,5vw,36px);box-shadow:0 30px 100px #0009}.modal .eyebrow{margin-bottom:10px}.modal h2{font-size:clamp(28px,5vw,42px);letter-spacing:-.06em;margin:0 0 10px;line-height:1}.modal h2 span{color:var(--cyan)}.modal p{color:#a8b6d2;line-height:1.65;font-size:13px}.name-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}.name-grid label{font-size:10px;letter-spacing:.1em;color:#a8b6d2}.name-grid input{display:block;width:100%;margin-top:7px;background:#080f20;border:1px solid #344768;border-radius:9px;color:white;padding:12px;outline:none}.name-grid input:focus{border-color:var(--cyan)}.modal-actions{display:flex;gap:10px;flex-wrap:wrap}.result-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}.result-stat{padding:14px;border:1px solid var(--line);border-radius:12px;background:#080f20;min-width:0}.result-stat strong{display:block;color:var(--cyan);font-size:10px;letter-spacing:.1em;overflow-wrap:anywhere}.result-stat span{display:block;font-size:clamp(17px,4vw,24px);font-weight:950;margin-top:7px;font-variant-numeric:tabular-nums}.hidden{display:none!important}
 @media(max-width:900px){.layout{grid-template-columns:1fr}.side{display:grid;grid-template-columns:1fr 1fr}.side-card:last-child{grid-column:1/-1}}
 @media(max-width:560px){.top{align-items:flex-start}.pill{display:none}.side{display:flex}.controls{grid-template-columns:1fr}.game-head{padding:13px}.below{padding:13px}.name-grid{grid-template-columns:1fr}.footer{line-height:1.7}#game{aspect-ratio:4/3}}
 </style>
@@ -62,6 +62,11 @@ button,input{font:inherit}button{cursor:pointer;border:0;font-weight:900;letter-
 <div class="modal"><div class="eyebrow">NEON CIRCUIT / RACE SETUP</div><h2>¿QUIÉN DOMINA<br>LA <span>PISTA?</span></h2><p>Escribe tu nombre. Cuando el segundo jugador se conecte en línea, ambos comienzan la misma carrera de 2 minutos y 30 segundos.</p>
 <div class="name-grid"><label>PILOTO 01<input id="name1" maxlength="16" value="AZUL" autocomplete="off"></label><label>PILOTO 02<input id="name2" maxlength="16" value="ROSA" autocomplete="off"></label></div>
 <div class="modal-actions"><button class="primary" id="confirmBtn">Entrar a la pista →</button></div></div></div>
+<div class="overlay hidden" id="resultsOverlay" role="dialog" aria-modal="true" aria-labelledby="resultsTitle">
+<div class="modal"><div class="eyebrow">NEON CIRCUIT / RESULTADOS</div><h2 id="resultsTitle">FIN DE LA CARRERA</h2>
+<p id="resultsMessage">El tiempo terminó. Revisa quién recorrió más distancia.</p>
+<div class="result-stats"><div class="result-stat"><strong id="resultP1Label">PILOTO</strong><span id="resultP1Distance">0.00 km</span></div><div class="result-stat"><strong id="resultP2Label">RIVAL</strong><span id="resultP2Distance">0.00 km</span></div></div>
+<div class="modal-actions"><button class="primary" id="playAgainBtn">↻ Jugar otra vez</button></div></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* Supabase: pega aquí SOLO la URL y la publishable key del proyecto. Nunca uses una secret key en el navegador. */
@@ -393,6 +398,7 @@ function applySharedRaceStart(startAt,raceId){
   matchStartAt=at;matchRaceId=String(raceId||('race-'+at));onlineRace=!!db;localReady=true;
   raceScores=[0,0];
   keys.clear();running=false;ended=false;crashed=false;
+  document.getElementById('resultsOverlay').classList.add('hidden');
   document.getElementById('setup').classList.add('hidden');
   resetPlayerForNewRace();
   document.getElementById('gameState').textContent='SYNC';
@@ -402,7 +408,9 @@ function applySharedRaceStart(startAt,raceId){
   draw();
 }
 function tryStartOnlineRace(){
-  if(!db||!liveChannel||!localReady||!remoteOnline||matchStartAt||!remoteState)return;
+  // Inicia una nueva carrera solo cuando ambos navegadores han confirmado que están listos.
+  // Esto evita que el fin de una carrera dispare otra automáticamente.
+  if(!db||!liveChannel||!localReady||!remoteOnline||matchStartAt||!remoteState||!remoteState.ready||remoteState.ended)return;
   // Solo un navegador inicia la cuenta atrás compartida: evita dos relojes distintos.
   if(String(clientId).localeCompare(String(remoteState.id))>=0)return;
   const startAt=Date.now()+1800;
@@ -433,15 +441,42 @@ function start(){
   draw();
 }
 function finishRace(){
-  running=false;ended=true;crashed=false;document.getElementById('gameState').textContent='FINISH';
-  document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Otra carrera';
-  const winner=remoteOnline&&remoteState&&Number(remoteState.distance)>raceScores[0]?names[1]:names[0];
-  document.getElementById('status').textContent='Carrera terminada. Recorriste '+(raceScores[0]/1000).toFixed(2)+' km. Guardando resultado si Supabase está conectado…';
-  saveResult(winner);
-  // Cierra esta sesión compartida para que la siguiente carrera pueda crear un nuevo reloj.
-  localReady=false;matchStartAt=0;matchRaceId='';
+  if(ended)return;
+  running=false;ended=true;crashed=false;keys.clear();
+  document.getElementById('gameState').textContent='FINISH';
+  document.getElementById('startBtn').disabled=false;
+  document.getElementById('startBtn').textContent='↻ Jugar otra vez';
+
+  const localName=String(names[0]||'PILOTO').trim().toUpperCase();
+  const hasRival=!!(remoteOnline&&remoteState);
+  const localDistance=Math.max(0,Number(raceScores[0])||0);
+  const rivalDistance=hasRival?Math.max(Number(raceScores[1])||0,Number(remoteState.distance)||0):0;
+  const rivalName=hasRival?String(remoteState.name||names[1]||'RIVAL').trim().toUpperCase():String(names[1]||'RIVAL').trim().toUpperCase();
+  let winner;
+  if(!hasRival)winner=localName;
+  else if(Math.abs(localDistance-rivalDistance)<1)winner='EMPATE';
+  else winner=localDistance>rivalDistance?localName:rivalName;
+
+  document.getElementById('resultsTitle').textContent=winner==='EMPATE'?'¡EMPATE!':'¡GANÓ '+winner+'!';
+  document.getElementById('resultsMessage').textContent=hasRival
+    ? 'Terminó el tiempo de 2:30. Gana quien recorrió más distancia. Pulsa «Jugar otra vez» cuando quieran iniciar otra carrera.'
+    : 'Terminó el tiempo de 2:30. Esta fue una carrera de práctica; conecta al rival para competir en línea.';
+  document.getElementById('resultP1Label').textContent='TU DISTANCIA · '+localName;
+  document.getElementById('resultP1Distance').textContent=(localDistance/1000).toFixed(2)+' km';
+  document.getElementById('resultP2Label').textContent=(hasRival?'RIVAL · ':'PILOTO 2 · ')+rivalName;
+  document.getElementById('resultP2Distance').textContent=(rivalDistance/1000).toFixed(2)+' km';
+  document.getElementById('status').textContent='Carrera terminada. '+(winner==='EMPATE'?'El resultado es un empate.':'Ganó '+winner+'.');
+  document.getElementById('resultsOverlay').classList.remove('hidden');
+
+  // Solo un navegador guarda el resultado compartido para evitar dos filas idénticas.
+  if(!hasRival||String(clientId).localeCompare(String(remoteState.id||''))<=0){
+    document.getElementById('status').textContent+=' Guardando resultado…';
+    saveResult(winner);
+  }
+  // Conserva el estado terminado; no borres el reloj compartido hasta que el usuario elija jugar otra vez.
 }
 function restart(){
+  document.getElementById('resultsOverlay').classList.add('hidden');
   running=false;ended=false;keys.clear();
   document.getElementById('setup').classList.remove('hidden');document.getElementById('gameState').textContent='STANDBY';
   document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Iniciar carrera';
@@ -456,6 +491,10 @@ document.getElementById('confirmBtn').addEventListener('click',()=>{
 });
 document.getElementById('startBtn').addEventListener('click',()=>{if(crashed){start()}else if(ended){restart()}else if(!running){document.getElementById('setup').classList.remove('hidden')}});
 document.getElementById('resetBtn').addEventListener('click',restart);
+document.getElementById('playAgainBtn').addEventListener('click',()=>{
+  // Esta acción vuelve a la preparación de la carrera; no inicia otra sin que alguien lo elija.
+  restart();
+});
 function normalizeControlKey(e){
   const k=String(e.key||'').toLowerCase();
   if(['arrowleft','arrowright','arrowup','a','d','w'].includes(k))return k;
@@ -500,9 +539,10 @@ function connectLiveRace(){
    const payloadRaceActive=payloadStart>0&&!payload.ended&&Date.now()<payloadStart+RACE_SECONDS*1000;
    if(payloadRaceActive && (!matchStartAt || String(payload.matchRaceId)!==String(matchRaceId))){
      applySharedRaceStart(payloadStart,payload.matchRaceId);
-   }else if(payload.ready && !localReady && !matchStartAt){
-     // Si el primer jugador ya está listo, el segundo entra automáticamente.
+   }else if(payload.ready && !payload.ended && !localReady && !matchStartAt){
+     // Solo acepta la preparación de una carrera nueva; un estado terminado no reinicia la partida.
      localReady=true;
+     document.getElementById('resultsOverlay').classList.add('hidden');
      document.getElementById('setup').classList.add('hidden');
      document.getElementById('startBtn').textContent='Esperando sincronización…';
      document.getElementById('startBtn').disabled=true;
