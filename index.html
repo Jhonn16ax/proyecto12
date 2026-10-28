@@ -65,8 +65,8 @@ button,input{font:inherit}button{cursor:pointer;border:0;font-weight:900;letter-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* Supabase: pega aquí SOLO la URL y la publishable key del proyecto. Nunca uses una secret key en el navegador. */
-const SUPABASE_URL = "PEGA_AQUI_LA_URL_DE_SUPABASE";
-const SUPABASE_PUBLISHABLE_KEY = "PEGA_AQUI_LA_PUBLISHABLE_KEY";
+const SUPABASE_URL = "https://lkwrllmloqlopvdzhlls.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_4TnO57AtSUmCEEt3pe0Sww_wUGVtzJf";
 let db = null;
 if (window.supabase && SUPABASE_URL.startsWith("https://") && SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_")) {
   db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
