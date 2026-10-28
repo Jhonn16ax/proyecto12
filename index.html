@@ -86,6 +86,8 @@ const W=960,H=540,keys=new Set();
 const RACE_SECONDS=150;
 let running=false,ended=false,crashed=false,last=0,elapsed=0,timeLeft=RACE_SECONDS,spawn=0,roadOffset=0,obstacles=[],particles=[];
 let localReady=false,matchStartAt=0,matchRaceId='',onlineRace=false;
+// El navegador que da la salida es el reloj oficial; el otro usa un reloj monotónico basado en sus mensajes.
+let sharedClockRemainingMs=RACE_SECONDS*1000,sharedClockReceivedAt=0;
 // Marcador persistente de carrera: nunca se cambia al reiniciar el coche tras un choque.
 let raceScores=[0,0];
 let names=['AZUL','ROSA'];
@@ -298,7 +300,16 @@ function resetPlayerCarAfterCrash(){
 function update(dt){
   if(!running)return;
   elapsed=Math.max(0,(Date.now()-matchStartAt)/1000);
-  timeLeft=Math.max(0,Math.ceil((matchStartAt+RACE_SECONDS*1000-Date.now())/1000));
+  const followsRemoteClock=!!(onlineRace&&remoteOnline&&remoteState&&String(clientId).localeCompare(String(remoteState.id))>0);
+  if(followsRemoteClock){
+    if(sharedClockReceivedAt>0){
+      timeLeft=Math.max(0,Math.ceil((sharedClockRemainingMs-(performance.now()-sharedClockReceivedAt))/1000));
+    }else if(Number.isFinite(Number(remoteState.timeLeft))){
+      timeLeft=Math.max(0,Math.ceil(Number(remoteState.timeLeft)));
+    }
+  }else{
+    timeLeft=Math.max(0,Math.ceil((matchStartAt+RACE_SECONDS*1000-Date.now())/1000));
+  }
   const car=cars[0];
   const left=keys.has('arrowleft')||keys.has('a');
   const right=keys.has('arrowright')||keys.has('d');
@@ -357,7 +368,9 @@ function syncPlayer(dt){
   liveChannel.send({type:'broadcast',event:'player-state',payload:{
     id:clientId,name:names[0]||'PILOTO',x:cars[0].x,progress:cars[0].progress,
     distance:Math.round(raceScores[0]),speed:cars[0].speed,running,ended,ready:localReady,
-    matchStartAt,matchRaceId,updatedAt:Date.now()
+    matchStartAt,matchRaceId,timeLeft,
+    remainingMs:matchStartAt?Math.min(RACE_SECONDS*1000,Math.max(0,matchStartAt+RACE_SECONDS*1000-Date.now())):RACE_SECONDS*1000,
+    updatedAt:Date.now()
   }}).catch(()=>{});
   if(remoteOnline&&Date.now()-remoteLastSeen>3500){
     remoteOnline=false;remoteState=null;
@@ -372,10 +385,14 @@ function frame(t){
   requestAnimationFrame(frame);
   const dt=Math.min(.035,(t-last)/1000||0);last=t;
   try{
-    if(matchStartAt && !running && !ended && localReady && Date.now()>=matchStartAt){
-      running=true;crashed=false;
-      document.getElementById('gameState').textContent='RACE LIVE';
-      document.getElementById('status').textContent='¡Carrera iniciada! Tienen 2 minutos y 30 segundos. Si chocas, solo tu carro vuelve al inicio.';
+    if(matchStartAt && !running && !ended && localReady){
+      const followsRemoteClock=!!(onlineRace&&remoteOnline&&remoteState&&String(clientId).localeCompare(String(remoteState.id))>0);
+      const startSignal=followsRemoteClock?!!remoteState.running:Date.now()>=matchStartAt;
+      if(startSignal){
+        running=true;crashed=false;
+        document.getElementById('gameState').textContent='RACE LIVE';
+        document.getElementById('status').textContent='¡Carrera iniciada! Tienen 2 minutos y 30 segundos. Si chocas, solo tu carro vuelve al inicio.';
+      }
     }
     if(running)update(dt);
     syncPlayer(dt);draw();
@@ -480,7 +497,7 @@ function restart(){
   running=false;ended=false;keys.clear();
   document.getElementById('setup').classList.remove('hidden');document.getElementById('gameState').textContent='STANDBY';
   document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Iniciar carrera';
-  localReady=false;matchStartAt=0;matchRaceId='';onlineRace=false;timeLeft=RACE_SECONDS;elapsed=0;distance=0;raceScores=[0,0];cars[0].distance=0;cars[0].totalDistance=0;cars[0].speed=0;cars[0].x=0;cars[0].progress=0;document.getElementById('timer').textContent=formatRaceTime(RACE_SECONDS);
+  localReady=false;matchStartAt=0;matchRaceId='';onlineRace=false;timeLeft=RACE_SECONDS;elapsed=0;sharedClockRemainingMs=RACE_SECONDS*1000;sharedClockReceivedAt=0;distance=0;raceScores=[0,0];cars[0].distance=0;cars[0].totalDistance=0;cars[0].speed=0;cars[0].x=0;cars[0].progress=0;document.getElementById('timer').textContent=formatRaceTime(RACE_SECONDS);
   obstacles.forEach(o=>o.hit=false);draw();
 }
 document.getElementById('confirmBtn').addEventListener('click',()=>{
@@ -529,6 +546,11 @@ function connectLiveRace(){
  liveChannel.on('broadcast',{event:'player-state'},({payload})=>{
    if(!payload||payload.id===clientId)return;
    remoteState=payload;remoteLastSeen=Date.now();remoteOnline=true;
+   // El ID menor es el navegador que da la salida y, por tanto, la fuente oficial del cronómetro.
+   if(String(payload.id).localeCompare(String(clientId))<0 && Number.isFinite(Number(payload.remainingMs))){
+     sharedClockRemainingMs=Math.max(0,Math.min(RACE_SECONDS*1000,Number(payload.remainingMs)));
+     sharedClockReceivedAt=performance.now();
+   }
    document.getElementById('name2Display').textContent=String(payload.name||'RIVAL').toUpperCase();
    raceScores[1]=Math.max(raceScores[1],Number(payload.distance)||0);
    document.getElementById('score2').textContent=(raceScores[1]/1000).toFixed(2)+' km';
@@ -536,7 +558,7 @@ function connectLiveRace(){
    document.getElementById('player2Pad').classList.remove('hidden');
    document.getElementById('dbStatus').textContent='¡Rival conectado! Carrera en línea.';
    const payloadStart=Number(payload.matchStartAt)||0;
-   const payloadRaceActive=payloadStart>0&&!payload.ended&&Date.now()<payloadStart+RACE_SECONDS*1000;
+   const payloadRaceActive=payloadStart>0&&!payload.ended&&Number(payload.remainingMs)>0;
    if(payloadRaceActive && (!matchStartAt || String(payload.matchRaceId)!==String(matchRaceId))){
      applySharedRaceStart(payloadStart,payload.matchRaceId);
    }else if(payload.ready && !payload.ended && !localReady && !matchStartAt){
