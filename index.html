@@ -86,7 +86,8 @@ const W=960,H=540,keys=new Set();
 const RACE_SECONDS=150;
 let running=false,ended=false,crashed=false,last=0,elapsed=0,timeLeft=RACE_SECONDS,spawn=0,roadOffset=0,obstacles=[],particles=[];
 let localReady=false,matchStartAt=0,matchRaceId='',onlineRace=false;
-// El navegador que da la salida es el reloj oficial; el otro usa un reloj monotónico basado en sus mensajes.
+// El navegador con ID menor es el reloj oficial. Tras la salida se usa tiempo monotónico para evitar diferencias entre relojes de los dispositivos.
+let localIsClockOwner=false,localStartPerf=0,localDeadlinePerf=0;
 let sharedClockRemainingMs=RACE_SECONDS*1000,sharedClockReceivedAt=0;
 // Marcador persistente de carrera: nunca se cambia al reiniciar el coche tras un choque.
 let raceScores=[0,0];
@@ -297,18 +298,25 @@ function resetPlayerCarAfterCrash(){
   obstacles.forEach(o=>o.hit=false);
   steerVisual=0;collisionFlash=0;lastObstacleHit=-99999;
 }
+function shouldFollowSharedClock(){
+  return !!(onlineRace&&!localIsClockOwner);
+}
+function getRemainingRaceMs(){
+  if(shouldFollowSharedClock()&&sharedClockReceivedAt>0){
+    return Math.max(0,sharedClockRemainingMs-(performance.now()-sharedClockReceivedAt));
+  }
+  if(localDeadlinePerf>0)return Math.max(0,localDeadlinePerf-performance.now());
+  return RACE_SECONDS*1000;
+}
 function update(dt){
   if(!running)return;
-  elapsed=Math.max(0,(Date.now()-matchStartAt)/1000);
-  const followsRemoteClock=!!(onlineRace&&remoteOnline&&remoteState&&String(clientId).localeCompare(String(remoteState.id))>0);
-  if(followsRemoteClock){
-    if(sharedClockReceivedAt>0){
-      timeLeft=Math.max(0,Math.ceil((sharedClockRemainingMs-(performance.now()-sharedClockReceivedAt))/1000));
-    }else if(Number.isFinite(Number(remoteState.timeLeft))){
-      timeLeft=Math.max(0,Math.ceil(Number(remoteState.timeLeft)));
-    }
-  }else{
-    timeLeft=Math.max(0,Math.ceil((matchStartAt+RACE_SECONDS*1000-Date.now())/1000));
+  elapsed=Math.max(0,(RACE_SECONDS*1000-getRemainingRaceMs())/1000);
+  timeLeft=Math.max(0,Math.ceil(getRemainingRaceMs()/1000));
+  document.getElementById('timer').textContent=formatRaceTime(timeLeft);
+  // El segundo navegador espera la señal final del reloj oficial para terminar en el mismo momento.
+  if(timeLeft<=0&&shouldFollowSharedClock()){
+    if(remoteState&&remoteState.ended)finishRace();
+    return;
   }
   const car=cars[0];
   const left=keys.has('arrowleft')||keys.has('a');
@@ -364,12 +372,13 @@ function update(dt){
 }
 function syncPlayer(dt){
   if(!db||!liveChannel)return;
-  syncElapsed+=dt;if(syncElapsed<.15)return;syncElapsed=0;
+  syncElapsed+=dt;if(syncElapsed<.075)return;syncElapsed=0;
+  const publishedRemainingMs=matchStartAt?getRemainingRaceMs():RACE_SECONDS*1000;
   liveChannel.send({type:'broadcast',event:'player-state',payload:{
     id:clientId,name:names[0]||'PILOTO',x:cars[0].x,progress:cars[0].progress,
     distance:Math.round(raceScores[0]),speed:cars[0].speed,running,ended,ready:localReady,
     matchStartAt,matchRaceId,timeLeft,
-    remainingMs:matchStartAt?Math.min(RACE_SECONDS*1000,Math.max(0,matchStartAt+RACE_SECONDS*1000-Date.now())):RACE_SECONDS*1000,
+    remainingMs:publishedRemainingMs,
     updatedAt:Date.now()
   }}).catch(()=>{});
   if(remoteOnline&&Date.now()-remoteLastSeen>3500){
@@ -386,8 +395,7 @@ function frame(t){
   const dt=Math.min(.035,(t-last)/1000||0);last=t;
   try{
     if(matchStartAt && !running && !ended && localReady){
-      const followsRemoteClock=!!(onlineRace&&remoteOnline&&remoteState&&String(clientId).localeCompare(String(remoteState.id))>0);
-      const startSignal=followsRemoteClock?!!remoteState.running:Date.now()>=matchStartAt;
+      const startSignal=shouldFollowSharedClock()?!!(remoteState&&remoteState.running):performance.now()>=localStartPerf;
       if(startSignal){
         running=true;crashed=false;
         document.getElementById('gameState').textContent='RACE LIVE';
@@ -413,6 +421,11 @@ function applySharedRaceStart(startAt,raceId){
   if(!Number.isFinite(at)||at<=0)return;
   if(matchStartAt===at && matchRaceId===raceId)return;
   matchStartAt=at;matchRaceId=String(raceId||('race-'+at));onlineRace=!!db;localReady=true;
+  localIsClockOwner=!onlineRace||!remoteState||String(clientId).localeCompare(String(remoteState.id))<0;
+  const startDelayMs=localIsClockOwner?Math.max(0,at-Date.now()):0;
+  localStartPerf=localIsClockOwner?performance.now()+startDelayMs:0;
+  localDeadlinePerf=localIsClockOwner?localStartPerf+RACE_SECONDS*1000:0;
+  if(!localIsClockOwner&&sharedClockReceivedAt===0)sharedClockRemainingMs=RACE_SECONDS*1000;
   raceScores=[0,0];
   keys.clear();running=false;ended=false;crashed=false;
   document.getElementById('resultsOverlay').classList.add('hidden');
@@ -441,7 +454,7 @@ function start(){
   document.getElementById('startBtn').textContent='Esperando rival…';
   document.getElementById('startBtn').disabled=true;
   if(db){
-    onlineRace=true;running=false;matchStartAt=0;matchRaceId='';
+    onlineRace=true;running=false;matchStartAt=0;matchRaceId='';localIsClockOwner=false;localStartPerf=0;localDeadlinePerf=0;sharedClockRemainingMs=RACE_SECONDS*1000;sharedClockReceivedAt=0;
     resetPlayerForNewRace();
     document.getElementById('gameState').textContent='WAITING';
     document.getElementById('status').textContent='Esperando al segundo jugador. El reloj de 2:30 empezará cuando se conecte.';
@@ -452,6 +465,7 @@ function start(){
   }
   // Sin Supabase configurado, conserva el modo de práctica individual.
   onlineRace=false;matchStartAt=Date.now();matchRaceId='solo-'+clientId+'-'+matchStartAt;
+  localIsClockOwner=true;localStartPerf=performance.now();localDeadlinePerf=localStartPerf+RACE_SECONDS*1000;
   resetPlayerForNewRace();running=true;
   document.getElementById('gameState').textContent='RACE LIVE';
   document.getElementById('status').textContent='Modo práctica: 2 minutos y 30 segundos. Mantén ↑/W para acelerar y ←/→ o A/D para esquivar.';
@@ -497,7 +511,7 @@ function restart(){
   running=false;ended=false;keys.clear();
   document.getElementById('setup').classList.remove('hidden');document.getElementById('gameState').textContent='STANDBY';
   document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Iniciar carrera';
-  localReady=false;matchStartAt=0;matchRaceId='';onlineRace=false;timeLeft=RACE_SECONDS;elapsed=0;sharedClockRemainingMs=RACE_SECONDS*1000;sharedClockReceivedAt=0;distance=0;raceScores=[0,0];cars[0].distance=0;cars[0].totalDistance=0;cars[0].speed=0;cars[0].x=0;cars[0].progress=0;document.getElementById('timer').textContent=formatRaceTime(RACE_SECONDS);
+  localReady=false;matchStartAt=0;matchRaceId='';onlineRace=false;localIsClockOwner=false;localStartPerf=0;localDeadlinePerf=0;timeLeft=RACE_SECONDS;elapsed=0;sharedClockRemainingMs=RACE_SECONDS*1000;sharedClockReceivedAt=0;distance=0;raceScores=[0,0];cars[0].distance=0;cars[0].totalDistance=0;cars[0].speed=0;cars[0].x=0;cars[0].progress=0;document.getElementById('timer').textContent=formatRaceTime(RACE_SECONDS);
   obstacles.forEach(o=>o.hit=false);draw();
 }
 document.getElementById('confirmBtn').addEventListener('click',()=>{
