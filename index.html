@@ -310,10 +310,18 @@ function getRemainingRaceMs(){
 }
 function update(dt){
   if(!running)return;
-  elapsed=Math.max(0,(RACE_SECONDS*1000-getRemainingRaceMs())/1000);
-  timeLeft=Math.max(0,Math.ceil(getRemainingRaceMs()/1000));
+  if(shouldFollowSharedClock()){
+    // Usa el mismo entero que publica el reloj oficial. Así ambos muestran el mismo segundo,
+    // sin volver a redondear el tiempo en cada dispositivo.
+    const officialSeconds=Number(remoteState&&remoteState.timeLeft);
+    if(Number.isFinite(officialSeconds))timeLeft=Math.max(0,Math.ceil(officialSeconds));
+    elapsed=RACE_SECONDS-timeLeft;
+  }else{
+    elapsed=Math.max(0,(RACE_SECONDS*1000-getRemainingRaceMs())/1000);
+    timeLeft=Math.max(0,Math.ceil(getRemainingRaceMs()/1000));
+  }
   document.getElementById('timer').textContent=formatRaceTime(timeLeft);
-  // El segundo navegador espera la señal final del reloj oficial para terminar en el mismo momento.
+  // El cliente secundario termina cuando recibe el estado final del reloj oficial.
   if(timeLeft<=0&&shouldFollowSharedClock()){
     if(remoteState&&remoteState.ended)finishRace();
     return;
