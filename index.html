@@ -313,10 +313,10 @@ function update(dt){
   if(shouldFollowSharedClock()){
     // Sólo usamos el reloj publicado por el dueño de esta carrera, separado del estado visual del rival.
     const officialClock=clockOwnerState&&String(clockOwnerState.matchRaceId||'')===String(matchRaceId||'')?clockOwnerState:null;
-    if(officialClock&&sharedClockReceivedAt>0){
-      timeLeft=Math.max(0,Math.ceil(getRemainingRaceMs()/1000));
-    }else if(officialClock&&Number.isFinite(Number(officialClock.timeLeft))){
-      timeLeft=Math.max(0,Math.ceil(Number(officialClock.timeLeft)));
+    if(officialClock&&Number.isFinite(Number(officialClock.timeLeft))){
+      // El reloj secundario copia exactamente el entero publicado por el reloj oficial.
+      // No crea su propio cambio de segundo ni usa el estado de otro coche.
+      timeLeft=Math.max(0,Math.floor(Number(officialClock.timeLeft)));
     }
     elapsed=RACE_SECONDS-timeLeft;
   }else{
@@ -435,12 +435,12 @@ function applySharedRaceStart(startAt,raceId,ownerId){
   const resolvedOwnerId=String(ownerId||clockOwnerId||((remoteState&&remoteState.id)?(String(remoteState.id).localeCompare(String(clientId))<0?remoteState.id:clientId):clientId));
   if(matchStartAt===at && matchRaceId===nextRaceId){
     clockOwnerId=resolvedOwnerId;
-  clockOwnerState=null;sharedClockRemainingMs=RACE_SECONDS*1000;sharedClockReceivedAt=0;
-  localIsClockOwner=!onlineRace||clockOwnerId===clientId;
+    localIsClockOwner=!onlineRace||clockOwnerId===clientId;
     return;
   }
   matchStartAt=at;matchRaceId=nextRaceId;onlineRace=!!db;localReady=true;
   clockOwnerId=resolvedOwnerId;
+  clockOwnerState=null;sharedClockRemainingMs=RACE_SECONDS*1000;sharedClockReceivedAt=0;
   localIsClockOwner=!onlineRace||clockOwnerId===clientId;
   const startDelayMs=localIsClockOwner?Math.max(0,at-Date.now()):0;
   localStartPerf=localIsClockOwner?performance.now()+startDelayMs:0;
