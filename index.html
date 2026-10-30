@@ -87,7 +87,7 @@ const RACE_SECONDS=150;
 let running=false,ended=false,crashed=false,last=0,elapsed=0,timeLeft=RACE_SECONDS,spawn=0,roadOffset=0,obstacles=[],particles=[];
 let localReady=false,matchStartAt=0,matchRaceId='',onlineRace=false;
 // La salida identifica explícitamente al navegador que manda el reloj para que ambos clientes no se proclamen dueños a la vez.
-let clockOwnerId='',localIsClockOwner=false,localStartPerf=0,localDeadlinePerf=0;
+let clockOwnerId='',clockOwnerState=null,localIsClockOwner=false,localStartPerf=0,localDeadlinePerf=0;
 let sharedClockRemainingMs=RACE_SECONDS*1000,sharedClockReceivedAt=0;
 // Marcador persistente de carrera: nunca se cambia al reiniciar el coche tras un choque.
 let raceScores=[0,0];
@@ -299,10 +299,10 @@ function resetPlayerCarAfterCrash(){
   steerVisual=0;collisionFlash=0;lastObstacleHit=-99999;
 }
 function shouldFollowSharedClock(){
-  return !!(onlineRace&&!localIsClockOwner);
+  return !!(onlineRace&&clockOwnerId&&String(clockOwnerId)!==String(clientId));
 }
 function getRemainingRaceMs(){
-  if(shouldFollowSharedClock()&&sharedClockReceivedAt>0){
+  if(shouldFollowSharedClock()&&clockOwnerState&&String(clockOwnerState.matchRaceId||'')===String(matchRaceId||'')&&sharedClockReceivedAt>0){
     return Math.max(0,sharedClockRemainingMs-(performance.now()-sharedClockReceivedAt));
   }
   if(localDeadlinePerf>0)return Math.max(0,localDeadlinePerf-performance.now());
@@ -311,10 +311,13 @@ function getRemainingRaceMs(){
 function update(dt){
   if(!running)return;
   if(shouldFollowSharedClock()){
-    // Usa el mismo entero que publica el reloj oficial. Así ambos muestran el mismo segundo,
-    // sin volver a redondear el tiempo en cada dispositivo.
-    const officialSeconds=Number(remoteState&&remoteState.timeLeft);
-    if(Number.isFinite(officialSeconds))timeLeft=Math.max(0,Math.ceil(officialSeconds));
+    // Sólo usamos el reloj publicado por el dueño de esta carrera, separado del estado visual del rival.
+    const officialClock=clockOwnerState&&String(clockOwnerState.matchRaceId||'')===String(matchRaceId||'')?clockOwnerState:null;
+    if(officialClock&&sharedClockReceivedAt>0){
+      timeLeft=Math.max(0,Math.ceil(getRemainingRaceMs()/1000));
+    }else if(officialClock&&Number.isFinite(Number(officialClock.timeLeft))){
+      timeLeft=Math.max(0,Math.ceil(Number(officialClock.timeLeft)));
+    }
     elapsed=RACE_SECONDS-timeLeft;
   }else{
     elapsed=Math.max(0,(RACE_SECONDS*1000-getRemainingRaceMs())/1000);
@@ -323,7 +326,7 @@ function update(dt){
   document.getElementById('timer').textContent=formatRaceTime(timeLeft);
   // El cliente secundario termina cuando recibe el estado final del reloj oficial.
   if(timeLeft<=0&&shouldFollowSharedClock()){
-    if(remoteState&&remoteState.ended)finishRace();
+    if(clockOwnerState&&clockOwnerState.ended)finishRace();
     return;
   }
   const car=cars[0];
@@ -403,7 +406,8 @@ function frame(t){
   const dt=Math.min(.035,(t-last)/1000||0);last=t;
   try{
     if(matchStartAt && !running && !ended && localReady){
-      const startSignal=shouldFollowSharedClock()?!!(remoteState&&remoteState.running):performance.now()>=localStartPerf;
+      const ownerClock=clockOwnerState&&String(clockOwnerState.matchRaceId||'')===String(matchRaceId||'')?clockOwnerState:null;
+      const startSignal=shouldFollowSharedClock()?!!(ownerClock&&ownerClock.running):performance.now()>=localStartPerf;
       if(startSignal){
         running=true;crashed=false;
         document.getElementById('gameState').textContent='RACE LIVE';
@@ -431,7 +435,8 @@ function applySharedRaceStart(startAt,raceId,ownerId){
   const resolvedOwnerId=String(ownerId||clockOwnerId||((remoteState&&remoteState.id)?(String(remoteState.id).localeCompare(String(clientId))<0?remoteState.id:clientId):clientId));
   if(matchStartAt===at && matchRaceId===nextRaceId){
     clockOwnerId=resolvedOwnerId;
-    localIsClockOwner=!onlineRace||clockOwnerId===clientId;
+  clockOwnerState=null;sharedClockRemainingMs=RACE_SECONDS*1000;sharedClockReceivedAt=0;
+  localIsClockOwner=!onlineRace||clockOwnerId===clientId;
     return;
   }
   matchStartAt=at;matchRaceId=nextRaceId;onlineRace=!!db;localReady=true;
@@ -470,7 +475,7 @@ function start(){
   document.getElementById('startBtn').textContent='Esperando rival…';
   document.getElementById('startBtn').disabled=true;
   if(db){
-    onlineRace=true;running=false;matchStartAt=0;matchRaceId='';localIsClockOwner=false;localStartPerf=0;localDeadlinePerf=0;sharedClockRemainingMs=RACE_SECONDS*1000;sharedClockReceivedAt=0;
+    onlineRace=true;running=false;matchStartAt=0;matchRaceId='';clockOwnerId='';clockOwnerState=null;localIsClockOwner=false;localStartPerf=0;localDeadlinePerf=0;sharedClockRemainingMs=RACE_SECONDS*1000;sharedClockReceivedAt=0;
     resetPlayerForNewRace();
     document.getElementById('gameState').textContent='WAITING';
     document.getElementById('status').textContent='Esperando al segundo jugador. El reloj de 2:30 empezará cuando se conecte.';
@@ -527,7 +532,7 @@ function restart(){
   running=false;ended=false;keys.clear();
   document.getElementById('setup').classList.remove('hidden');document.getElementById('gameState').textContent='STANDBY';
   document.getElementById('startBtn').disabled=false;document.getElementById('startBtn').textContent='▶ Iniciar carrera';
-  localReady=false;matchStartAt=0;matchRaceId='';onlineRace=false;clockOwnerId='';localIsClockOwner=false;localStartPerf=0;localDeadlinePerf=0;timeLeft=RACE_SECONDS;elapsed=0;sharedClockRemainingMs=RACE_SECONDS*1000;sharedClockReceivedAt=0;distance=0;raceScores=[0,0];cars[0].distance=0;cars[0].totalDistance=0;cars[0].speed=0;cars[0].x=0;cars[0].progress=0;document.getElementById('timer').textContent=formatRaceTime(RACE_SECONDS);
+  localReady=false;matchStartAt=0;matchRaceId='';onlineRace=false;clockOwnerId='';clockOwnerState=null;localIsClockOwner=false;localStartPerf=0;localDeadlinePerf=0;timeLeft=RACE_SECONDS;elapsed=0;sharedClockRemainingMs=RACE_SECONDS*1000;sharedClockReceivedAt=0;distance=0;raceScores=[0,0];cars[0].distance=0;cars[0].totalDistance=0;cars[0].speed=0;cars[0].x=0;cars[0].progress=0;document.getElementById('timer').textContent=formatRaceTime(RACE_SECONDS);
   obstacles.forEach(o=>o.hit=false);draw();
 }
 document.getElementById('confirmBtn').addEventListener('click',()=>{
@@ -576,13 +581,17 @@ function connectLiveRace(){
  liveChannel.on('broadcast',{event:'player-state'},({payload})=>{
    if(!payload||payload.id===clientId)return;
    remoteState=payload;remoteLastSeen=Date.now();remoteOnline=true;
-   // El ID menor es el navegador que da la salida y, por tanto, la fuente oficial del cronómetro.
-   if(payload.clockOwnerId)clockOwnerId=String(payload.clockOwnerId);
-   if(clockOwnerId && String(payload.id)===clockOwnerId && String(payload.matchRaceId||'')===String(matchRaceId||'') && Number.isFinite(Number(payload.remainingMs))){
-     sharedClockRemainingMs=Math.max(0,Math.min(RACE_SECONDS*1000,Number(payload.remainingMs)));
-     sharedClockReceivedAt=performance.now();
-     localIsClockOwner=String(clockOwnerId)===String(clientId);
-   }
+    // Mantén el estado visual del rival aparte del reloj oficial.
+    if(payload.clockOwnerId)clockOwnerId=String(payload.clockOwnerId);
+    const payloadIsClockOwner=!!clockOwnerId&&String(payload.id)===String(clockOwnerId);
+    if(payloadIsClockOwner){
+      clockOwnerState=payload;
+      localIsClockOwner=String(clockOwnerId)===String(clientId);
+      if(String(payload.matchRaceId||'')===String(matchRaceId||'')&&Number.isFinite(Number(payload.remainingMs))){
+        sharedClockRemainingMs=Math.max(0,Math.min(RACE_SECONDS*1000,Number(payload.remainingMs)));
+        sharedClockReceivedAt=performance.now();
+      }
+    }
    document.getElementById('name2Display').textContent=String(payload.name||'RIVAL').toUpperCase();
    raceScores[1]=Math.max(raceScores[1],Number(payload.distance)||0);
    document.getElementById('score2').textContent=(raceScores[1]/1000).toFixed(2)+' km';
@@ -590,7 +599,7 @@ function connectLiveRace(){
    document.getElementById('player2Pad').classList.remove('hidden');
    document.getElementById('dbStatus').textContent='¡Rival conectado! Carrera en línea.';
    const payloadStart=Number(payload.matchStartAt)||0;
-   const payloadRaceActive=payloadStart>0&&!payload.ended&&Number(payload.remainingMs)>0;
+   const payloadRaceActive=payloadIsClockOwner&&payloadStart>0&&!payload.ended&&Number(payload.remainingMs)>0;
    if(payloadRaceActive && (!matchStartAt || String(payload.matchRaceId)!==String(matchRaceId))){
      applySharedRaceStart(payloadStart,payload.matchRaceId,payload.clockOwnerId||payload.id);
    }else if(payload.ready && !payload.ended && !localReady && !matchStartAt){
@@ -608,8 +617,12 @@ function connectLiveRace(){
    }
  });
  liveChannel.on('broadcast',{event:'race-start'},({payload})=>{
-   if(payload&&payload.startAt)applySharedRaceStart(payload.startAt,payload.raceId,payload.ownerId);
- });
+   if(payload&&payload.startAt){
+     clockOwnerId=String(payload.ownerId||'');
+     clockOwnerState=null;sharedClockRemainingMs=RACE_SECONDS*1000;sharedClockReceivedAt=0;
+     applySharedRaceStart(payload.startAt,payload.raceId,payload.ownerId);
+   }
+  });
  liveChannel.subscribe(status=>{
    if(status==='SUBSCRIBED'){
      document.getElementById('dbStatus').textContent='Conectado. Buscando otro piloto…';
