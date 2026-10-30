@@ -555,11 +555,12 @@ document.getElementById('confirmBtn').addEventListener('click',()=>{
   document.getElementById('name1Display').textContent=names[0].toUpperCase();
   document.getElementById('name2Display').textContent=names[1].toUpperCase();start();
 });
-document.getElementById('startBtn').addEventListener('click',()=>{if(crashed){start()}else if(ended){restart()}else if(!running){document.getElementById('setup').classList.remove('hidden')}});
+document.getElementById('startBtn').addEventListener('click',()=>{if(crashed){start()}else if(ended){restart();start()}else if(!running){document.getElementById('setup').classList.remove('hidden')}});
 document.getElementById('resetBtn').addEventListener('click',restart);
 document.getElementById('playAgainBtn').addEventListener('click',()=>{
-  // Esta acción vuelve a la preparación de la carrera; no inicia otra sin que alguien lo elija.
+  // La revancha se solicita solo al pulsar este botón; en online espera la confirmación del rival.
   restart();
+  start();
 });
 function normalizeControlKey(e){
   const k=String(e.key||'').toLowerCase();
@@ -586,7 +587,7 @@ function bindHoldButton(id,key){
 }
 bindHoldButton('p1left','arrowleft');bindHoldButton('p1right','arrowright');bindHoldButton('p1up','accelerate');
 let distance=0;
-async function loadLeaderboard(){if(!db){document.getElementById('dbStatus').textContent='Pendiente: configura Supabase para ranking compartido.';return}const {data,error}=await db.from('race_results').select('winner, distance, created_at').order('distance',{ascending:false}).limit(5);if(error){document.getElementById('dbStatus').textContent='Supabase conectado, revisa la tabla/políticas: '+error.message;return}document.getElementById('leaderboard').innerHTML=data.length?data.map((r,i)=>'<div class="leader-item"><span class="rank">0'+(i+1)+'</span><span class="leader-name">'+escapeHtml(r.winner)+'</span><span class="leader-time">'+(Number(r.distance||0)/1000).toFixed(2)+' km</span></div>').join(''):'<div class="empty">Todavía no hay carreras guardadas.</div>';document.getElementById('dbStatus').textContent='Ranking sincronizado con la base de datos.'}
+async function loadLeaderboard(){if(!db){document.getElementById('dbStatus').textContent='Pendiente: configura Supabase para ranking compartido.';return}const {data,error}=await db.from('race_results').select('winner, distance, created_at').order('created_at',{ascending:false}).limit(10);if(error){document.getElementById('dbStatus').textContent='Supabase conectado, revisa la tabla/políticas: '+error.message;return}document.getElementById('leaderboard').innerHTML=data.length?data.map((r,i)=>'<div class="leader-item"><span class="rank">0'+(i+1)+'</span><span class="leader-name">'+escapeHtml(r.winner)+'</span><span class="leader-time">'+(Number(r.distance||0)/1000).toFixed(2)+' km</span></div>').join(''):'<div class="empty">Todavía no hay carreras guardadas.</div>';document.getElementById('dbStatus').textContent='Ranking sincronizado con la base de datos.'}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function saveResult(winner){if(!db){document.getElementById('dbStatus').textContent='Resultado solo en esta partida. Configura Supabase para compartirlo entre dispositivos.';return}const maxDistance=Math.max(Math.round(raceScores[0]||0),Math.round(remoteOnline&&remoteState?Number(remoteState.distance)||0:0));const {error}=await db.from('race_results').insert({winner, distance:maxDistance, player_one:names[0], player_two:names[1]});if(error){document.getElementById('dbStatus').textContent='No se pudo guardar: '+error.message;return}await loadLeaderboard();document.getElementById('status').textContent+=' Resultado guardado en la nube.'}
 function connectLiveRace(){
@@ -614,16 +615,8 @@ function connectLiveRace(){
    document.getElementById('dbStatus').textContent='¡Rival conectado! Carrera en línea.';
    const payloadStart=Number(payload.matchStartAt)||0;
    const payloadRaceActive=payloadIsClockOwner&&payloadStart>0&&!payload.ended&&Number(payload.remainingMs)>0;
-   if(payloadRaceActive && (!matchStartAt || String(payload.matchRaceId)!==String(matchRaceId))){
+   if(localReady && payloadRaceActive && (!matchStartAt || String(payload.matchRaceId)!==String(matchRaceId))){
      applySharedRaceStart(payloadStart,payload.matchRaceId,payload.clockOwnerId||payload.id);
-   }else if(payload.ready && !payload.ended && !localReady && !matchStartAt){
-     // Solo acepta la preparación de una carrera nueva; un estado terminado no reinicia la partida.
-     localReady=true;
-     document.getElementById('resultsOverlay').classList.add('hidden');
-     document.getElementById('setup').classList.add('hidden');
-     document.getElementById('startBtn').textContent='Esperando sincronización…';
-     document.getElementById('startBtn').disabled=true;
-     document.getElementById('status').textContent='Jugador encontrado. Sincronizando la salida…';
    }
    tryStartOnlineRace();
    if(!matchStartAt && localReady){
@@ -631,7 +624,7 @@ function connectLiveRace(){
    }
  });
  liveChannel.on('broadcast',{event:'race-start'},({payload})=>{
-   if(payload&&payload.startAt){
+   if(payload&&payload.startAt&&localReady&&!ended){
      clockOwnerId=String(payload.ownerId||'');
      clockOwnerState=null;sharedClockRemainingMs=RACE_SECONDS*1000;sharedClockReceivedAt=0;
      applySharedRaceStart(payload.startAt,payload.raceId,payload.ownerId);
@@ -647,6 +640,7 @@ function connectLiveRace(){
  });
 }
 loadLeaderboard();
+setInterval(loadLeaderboard,10000);
 connectLiveRace();
 resizeCanvas();
 </script>
