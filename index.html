@@ -302,25 +302,41 @@ function shouldFollowSharedClock(){
   return !!(onlineRace&&clockOwnerId&&String(clockOwnerId)!==String(clientId));
 }
 function getRemainingRaceMs(){
-  // En una carrera online, ambos dispositivos calculan el tiempo restante desde el MISMO
-  // instante absoluto de salida y el mismo final. No dependen del retraso de los mensajes.
-  if(onlineRace&&matchStartAt>0){
-    return Math.max(0,matchStartAt+RACE_SECONDS*1000-Date.now());
+  // El propietario usa su deadline monotónico. El rival replica su cuenta regresiva.
+  if(onlineRace&&localIsClockOwner&&localDeadlinePerf>0){
+    return Math.max(0,localDeadlinePerf-performance.now());
+  }
+  if(shouldFollowSharedClock()&&sharedClockReceivedAt>0){
+    return Math.max(0,sharedClockRemainingMs-(performance.now()-sharedClockReceivedAt));
   }
   if(localDeadlinePerf>0)return Math.max(0,localDeadlinePerf-performance.now());
   return RACE_SECONDS*1000;
 }
 function update(dt){
   if(!running)return;
-  const remainingMs=getRemainingRaceMs();
-  // En los dos navegadores la cifra sale del mismo deadline absoluto, de modo que
-  // el cambio de cada segundo y el final se calculan en el mismo instante.
-  timeLeft=Math.max(0,Math.ceil(remainingMs/1000));
-  elapsed=Math.min(RACE_SECONDS,Math.max(0,(RACE_SECONDS*1000-remainingMs)/1000));
-  document.getElementById('timer').textContent=formatRaceTime(timeLeft);
-  if(timeLeft<=0){
-    finishRace();
-    return;
+  if(shouldFollowSharedClock()){
+    // El segundo jugador copia el contador del dueño; no usa el reloj de su dispositivo.
+    const ownerClock=clockOwnerState&&String(clockOwnerState.matchRaceId||'')===String(matchRaceId||'')?clockOwnerState:null;
+    if(ownerClock&&Number.isFinite(Number(ownerClock.timeLeft))){
+      timeLeft=Math.max(0,Math.floor(Number(ownerClock.timeLeft)));
+    }
+    elapsed=RACE_SECONDS-timeLeft;
+    document.getElementById('timer').textContent=formatRaceTime(timeLeft);
+    if(ownerClock&&ownerClock.ended){
+      finishRace();
+      return;
+    }
+    // El jugador secundario termina sólo cuando recibe el estado final del dueño.
+    if(timeLeft<=0)return;
+  }else{
+    const remainingMs=getRemainingRaceMs();
+    timeLeft=Math.max(0,Math.ceil(remainingMs/1000));
+    elapsed=Math.min(RACE_SECONDS,Math.max(0,(RACE_SECONDS*1000-remainingMs)/1000));
+    document.getElementById('timer').textContent=formatRaceTime(timeLeft);
+    if(timeLeft<=0){
+      finishRace();
+      return;
+    }
   }
   const car=cars[0];
   const left=keys.has('arrowleft')||keys.has('a');
@@ -399,9 +415,9 @@ function frame(t){
   const dt=Math.min(.035,(t-last)/1000||0);last=t;
   try{
     if(matchStartAt && !running && !ended && localReady){
-      // El inicio compartido es un timestamp absoluto; ambos arrancan al llegar a él,
-      // aunque el aviso de estado del rival llegue con retraso.
-      const startSignal=Date.now()>=matchStartAt;
+      // El propietario inicia en su deadline monotónico. El rival espera el estado running del propietario.
+      const ownerClock=clockOwnerState&&String(clockOwnerState.matchRaceId||'')===String(matchRaceId||'')?clockOwnerState:null;
+      const startSignal=shouldFollowSharedClock()?!!(ownerClock&&ownerClock.running):performance.now()>=localStartPerf;
       if(startSignal){
         running=true;crashed=false;
         document.getElementById('gameState').textContent='RACE LIVE';
@@ -434,7 +450,7 @@ function applySharedRaceStart(startAt,raceId,ownerId){
   }
   matchStartAt=at;matchRaceId=nextRaceId;onlineRace=!!db;localReady=true;
   clockOwnerId=resolvedOwnerId;
-  clockOwnerState=null;sharedClockRemainingMs=RACE_SECONDS*1000;sharedClockReceivedAt=0;
+  // Mantén los ticks que hayan llegado antes del aviso de salida; se validan por matchRaceId.
   localIsClockOwner=!onlineRace||clockOwnerId===clientId;
   const startDelayMs=localIsClockOwner?Math.max(0,at-Date.now()):0;
   localStartPerf=localIsClockOwner?performance.now()+startDelayMs:0;
@@ -581,7 +597,7 @@ function connectLiveRace(){
     if(payloadIsClockOwner){
       clockOwnerState=payload;
       localIsClockOwner=String(clockOwnerId)===String(clientId);
-      if(String(payload.matchRaceId||'')===String(matchRaceId||'')&&Number.isFinite(Number(payload.remainingMs))){
+      if(Number.isFinite(Number(payload.remainingMs))){
         sharedClockRemainingMs=Math.max(0,Math.min(RACE_SECONDS*1000,Number(payload.remainingMs)));
         sharedClockReceivedAt=performance.now();
       }
