@@ -302,31 +302,24 @@ function shouldFollowSharedClock(){
   return !!(onlineRace&&clockOwnerId&&String(clockOwnerId)!==String(clientId));
 }
 function getRemainingRaceMs(){
-  if(shouldFollowSharedClock()&&clockOwnerState&&String(clockOwnerState.matchRaceId||'')===String(matchRaceId||'')&&sharedClockReceivedAt>0){
-    return Math.max(0,sharedClockRemainingMs-(performance.now()-sharedClockReceivedAt));
+  // En una carrera online, ambos dispositivos calculan el tiempo restante desde el MISMO
+  // instante absoluto de salida y el mismo final. No dependen del retraso de los mensajes.
+  if(onlineRace&&matchStartAt>0){
+    return Math.max(0,matchStartAt+RACE_SECONDS*1000-Date.now());
   }
   if(localDeadlinePerf>0)return Math.max(0,localDeadlinePerf-performance.now());
   return RACE_SECONDS*1000;
 }
 function update(dt){
   if(!running)return;
-  if(shouldFollowSharedClock()){
-    // Sólo usamos el reloj publicado por el dueño de esta carrera, separado del estado visual del rival.
-    const officialClock=clockOwnerState&&String(clockOwnerState.matchRaceId||'')===String(matchRaceId||'')?clockOwnerState:null;
-    if(officialClock&&Number.isFinite(Number(officialClock.timeLeft))){
-      // El reloj secundario copia exactamente el entero publicado por el reloj oficial.
-      // No crea su propio cambio de segundo ni usa el estado de otro coche.
-      timeLeft=Math.max(0,Math.floor(Number(officialClock.timeLeft)));
-    }
-    elapsed=RACE_SECONDS-timeLeft;
-  }else{
-    elapsed=Math.max(0,(RACE_SECONDS*1000-getRemainingRaceMs())/1000);
-    timeLeft=Math.max(0,Math.ceil(getRemainingRaceMs()/1000));
-  }
+  const remainingMs=getRemainingRaceMs();
+  // En los dos navegadores la cifra sale del mismo deadline absoluto, de modo que
+  // el cambio de cada segundo y el final se calculan en el mismo instante.
+  timeLeft=Math.max(0,Math.ceil(remainingMs/1000));
+  elapsed=Math.min(RACE_SECONDS,Math.max(0,(RACE_SECONDS*1000-remainingMs)/1000));
   document.getElementById('timer').textContent=formatRaceTime(timeLeft);
-  // El cliente secundario termina cuando recibe el estado final del reloj oficial.
-  if(timeLeft<=0&&shouldFollowSharedClock()){
-    if(clockOwnerState&&clockOwnerState.ended)finishRace();
+  if(timeLeft<=0){
+    finishRace();
     return;
   }
   const car=cars[0];
@@ -406,8 +399,9 @@ function frame(t){
   const dt=Math.min(.035,(t-last)/1000||0);last=t;
   try{
     if(matchStartAt && !running && !ended && localReady){
-      const ownerClock=clockOwnerState&&String(clockOwnerState.matchRaceId||'')===String(matchRaceId||'')?clockOwnerState:null;
-      const startSignal=shouldFollowSharedClock()?!!(ownerClock&&ownerClock.running):performance.now()>=localStartPerf;
+      // El inicio compartido es un timestamp absoluto; ambos arrancan al llegar a él,
+      // aunque el aviso de estado del rival llegue con retraso.
+      const startSignal=Date.now()>=matchStartAt;
       if(startSignal){
         running=true;crashed=false;
         document.getElementById('gameState').textContent='RACE LIVE';
