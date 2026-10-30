@@ -326,8 +326,12 @@ function update(dt){
       finishRace();
       return;
     }
-    // El jugador secundario termina sólo cuando recibe el estado final del dueño.
-    if(timeLeft<=0)return;
+    // Cuando el reloj compartido llega a cero, ambos jugadores muestran el resultado.
+    // No esperar otro mensaje: el último broadcast puede llegar después del cambio visual.
+    if(timeLeft<=0){
+      finishRace();
+      return;
+    }
   }else{
     const remainingMs=getRemainingRaceMs();
     timeLeft=Math.max(0,Math.ceil(remainingMs/1000));
