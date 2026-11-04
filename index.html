@@ -713,26 +713,16 @@ bindHoldButton('p1left','arrowleft');bindHoldButton('p1right','arrowright');bind
 let distance=0;
 async function loadLeaderboard(){
   if(!db){document.getElementById('dbStatus').textContent='Pendiente: configura Supabase para ranking compartido.';return;}
-  const {data,error}=await db.from('race_results')
-    .select('id,race_id,winner,distance,created_at')
-    .order('distance',{ascending:false})
-    .limit(50);
+  const {data,error}=await db.rpc('get_hall_of_fame');
   if(error){
     document.getElementById('dbStatus').textContent='No se pudo actualizar el ranking: '+error.message;
     return;
   }
-  const seen=new Set();
-  const top=[];
-  (data||[]).forEach(row=>{
-    const key=row.race_id||row.id;
-    if(seen.has(key))return;
-    seen.add(key);
-    if(top.length<5)top.push(row);
-  });
+  const top=data||[];
   document.getElementById('leaderboard').innerHTML=top.length
     ?top.map((r,i)=>'<div class="leader-item"><span class="rank">0'+(i+1)+'</span><span class="leader-name">'+escapeHtml(r.winner||'RESULTADO')+'</span><span class="leader-time">'+(Number(r.distance||0)/1000).toFixed(2)+' km</span></div>').join('')
     :'<div class="empty">Todavía no hay carreras guardadas.</div>';
-  document.getElementById('dbStatus').textContent='Top 5 actualizado desde Supabase.';
+  document.getElementById('dbStatus').textContent='Top 5 público actualizado desde Supabase.';
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function saveResult(winner,localDistance){
