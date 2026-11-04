@@ -713,7 +713,10 @@ bindHoldButton('p1left','arrowleft');bindHoldButton('p1right','arrowright');bind
 let distance=0;
 async function loadLeaderboard(){
   if(!db){document.getElementById('dbStatus').textContent='Pendiente: configura Supabase para ranking compartido.';return;}
-  const {data,error}=await db.rpc('get_hall_of_fame');
+  const {data,error}=await db.from('race_leaderboard')
+    .select('winner,distance,created_at')
+    .order('distance',{ascending:false})
+    .limit(5);
   if(error){
     document.getElementById('dbStatus').textContent='No se pudo actualizar el ranking: '+error.message;
     return;
