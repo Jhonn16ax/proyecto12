@@ -67,7 +67,7 @@ button:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.35)}
 <div class="score-row"><div class="driver"><div class="avatar" style="color:var(--pink)">P2</div><div><b id="name2Display">ESPERANDO…</b><small>Distancia acumulada (km)</small></div></div><div class="points" id="score2">0.00 km</div></div>
 <div class="score-row"><span class="subtle">TIEMPO RESTANTE</span><div class="points" id="timer">2:30</div></div>
 </section>
-<section class="side-card"><h3 class="side-title">HALL OF FAME <span class="subtle">ÚLTIMOS 10</span></h3><div id="leaderboard" class="leaderboard"><div class="empty">El ranking compartido aparecerá cuando conectes Supabase.</div></div><div class="status" id="dbStatus">Conecta Supabase para encontrar a otro piloto.</div></section>
+<section class="side-card"><h3 class="side-title">HALL OF FAME <span class="subtle">TOP 5</span></h3><div id="leaderboard" class="leaderboard"><div class="empty">El ranking compartido aparecerá cuando conectes Supabase.</div></div><div class="status" id="dbStatus">Conecta Supabase para encontrar a otro piloto.</div></section>
 <section class="side-card"><h3 class="side-title">MI HISTORIAL <span class="subtle">MI CUENTA</span></h3><div id="playerHistory" class="leaderboard"><div class="empty">Inicia sesión para ver tus carreras.</div></div><div class="status" id="historyStatus">Cada carrera quedará vinculada a tu cuenta.</div></section>
 <section class="side-card"><h3 class="side-title">OBJETIVO</h3><p class="empty">Compite durante 2 minutos y 30 segundos. Si hay dos jugadores conectados, ambos comparten el mismo reloj; si uno choca, solo su carro vuelve al inicio y el tiempo sigue corriendo.</p></section>
 </aside>
@@ -741,7 +741,7 @@ async function saveResult(winner,localDistance){
     return;
   }
   const myDistance=Math.round(Math.max(0,Number(localDistance)||0));
-  const rivalDistance=Math.round(Math.max(0,Number(remoteState&&remoteState.distance)||0));
+  const rivalDistance=Math.round(Math.max(0,Number(raceScores[1])||0,Number(remoteState&&remoteState.distance)||0));
   const winnerDistance=Math.max(myDistance,rivalDistance);
   const row={
     user_id:currentUser.id,
@@ -788,7 +788,7 @@ async function loadPlayerHistory(){
       return '<div class="history-item"><div class="history-info"><b>'+escapeHtml(r.winner||'RESULTADO')+'</b><small>'+escapeHtml(r.player_one||'PILOTO')+' vs '+escapeHtml(r.player_two||'RIVAL')+' · '+escapeHtml(date)+'</small></div><strong class="history-distance">'+(Number(r.player_distance??r.distance??0)/1000).toFixed(2)+' km</strong></div>';
     }).join('');
   }
-  status.textContent='Se muestran tus últimas '+(data?data.length:0)+' carreras.';
+  status.textContent='Se muestran tus últimas '+(data?data.length:0)+' carreras de esta cuenta.';
 }
 function connectLiveRace(){
  if(!db){document.getElementById('dbStatus').textContent='Configura URL y publishable key de Supabase para conectar jugadores.';return}
