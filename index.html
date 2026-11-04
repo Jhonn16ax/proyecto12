@@ -128,7 +128,7 @@ function isPlaceholderDriverName(value){
 }
 function driverNameFromEmail(email){
   const localPart=String(email||'').split('@')[0]||'PILOTO';
-  const cleaned=localPart.replace(/[._-]+/g,' ').replace(/[^a-zA-Z0-9 ]/g,'').trim().replace(/\\s+/g,' ');
+  const cleaned=localPart.replace(/[._-]+/g,' ').replace(/[^a-zA-Z0-9 ]/g,'').trim().replace(/\s+/g,' ');
   return (cleaned||'PILOTO').slice(0,16).toUpperCase();
 }
 function renderAuthState(){
