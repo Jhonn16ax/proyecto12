@@ -68,7 +68,7 @@ button:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.35)}
 <div class="score-row"><span class="subtle">TIEMPO RESTANTE</span><div class="points" id="timer">2:30</div></div>
 </section>
 <section class="side-card"><h3 class="side-title">HALL OF FAME <span class="subtle">ÚLTIMOS 10</span></h3><div id="leaderboard" class="leaderboard"><div class="empty">El ranking compartido aparecerá cuando conectes Supabase.</div></div><div class="status" id="dbStatus">Conecta Supabase para encontrar a otro piloto.</div></section>
-<section class="side-card"><h3 class="side-title">MI HISTORIAL <span class="subtle">MIS CARRERAS</span></h3><div id="playerHistory" class="leaderboard"><div class="empty">Inicia sesión para ver tus carreras.</div></div><div class="status" id="historyStatus">Cada carrera quedará vinculada a tu cuenta.</div></section>
+<section class="side-card"><h3 class="side-title">MI HISTORIAL <span class="subtle">MI CUENTA</span></h3><div id="playerHistory" class="leaderboard"><div class="empty">Inicia sesión para ver tus carreras.</div></div><div class="status" id="historyStatus">Cada carrera quedará vinculada a tu cuenta.</div></section>
 <section class="side-card"><h3 class="side-title">OBJETIVO</h3><p class="empty">Compite durante 2 minutos y 30 segundos. Si hay dos jugadores conectados, ambos comparten el mismo reloj; si uno choca, solo su carro vuelve al inicio y el tiempo sigue corriendo.</p></section>
 </aside>
 </main>
@@ -143,11 +143,20 @@ async function signUpAccount(){
   const {data,error}=await db.auth.signUp({email,password,options:{data:{display_name:displayName}}});
   if(error){setAuthMessage(error.message,true);return;}
   if(data.session&&data.user){
-    currentUser=data.user;renderAuthState();await loadPlayerHistory();
+    currentUser=data.user;applySignedInProfile(data.user);renderAuthState();await loadPlayerHistory();
     setAuthMessage('Cuenta creada y sesión iniciada. Ya puedes entrar a la pista.');
   }else{
     setAuthMessage('Cuenta creada. Revisa tu correo para confirmar la cuenta y luego inicia sesión. Si usas correos de prueba, revisa la opción de confirmación de email en Supabase.');
   }
+}
+function applySignedInProfile(user){
+  const displayName=String(user&&user.user_metadata&&user.user_metadata.display_name||'').trim();
+  if(!displayName)return;
+  names[0]=displayName.slice(0,16);
+  const input=document.getElementById('name1');
+  if(input)input.value=names[0];
+  const display=document.getElementById('name1Display');
+  if(display)display.textContent=names[0].toUpperCase();
 }
 async function signInAccount(){
   if(!db){setAuthMessage('Supabase no está disponible.',true);return;}
@@ -157,7 +166,7 @@ async function signInAccount(){
   setAuthMessage('Iniciando sesión…');
   const {data,error}=await db.auth.signInWithPassword({email,password});
   if(error){setAuthMessage(error.message,true);return;}
-  currentUser=data.user;renderAuthState();await loadPlayerHistory();
+  currentUser=data.user;applySignedInProfile(data.user);renderAuthState();await loadPlayerHistory();
   setAuthMessage('Bienvenido. Tu historial personal está listo.');
 }
 async function signOutAccount(){
@@ -168,7 +177,7 @@ async function signOutAccount(){
   const history=document.getElementById('playerHistory');
   if(history)history.innerHTML='<div class="empty">Inicia sesión para ver tus carreras.</div>';
   const status=document.getElementById('historyStatus');
-  if(status)status.textContent='Cada carrera quedará vinculada a tu cuenta.';
+  if(status)status.textContent='Cada resultado se guarda con el ID de tu cuenta.';
 }
 if(db){
   db.auth.onAuthStateChange((_event,session)=>{
@@ -702,15 +711,44 @@ function bindHoldButton(id,key){
 }
 bindHoldButton('p1left','arrowleft');bindHoldButton('p1right','arrowright');bindHoldButton('p1up','accelerate');
 let distance=0;
-async function loadLeaderboard(){if(!db){document.getElementById('dbStatus').textContent='Pendiente: configura Supabase para ranking compartido.';return}const {data,error}=await db.from('race_results').select('winner, distance, created_at').order('created_at',{ascending:false}).limit(10);if(error){document.getElementById('dbStatus').textContent='Supabase conectado, revisa la tabla/políticas: '+error.message;return}document.getElementById('leaderboard').innerHTML=data.length?data.map((r,i)=>'<div class="leader-item"><span class="rank">0'+(i+1)+'</span><span class="leader-name">'+escapeHtml(r.winner)+'</span><span class="leader-time">'+(Number(r.distance||0)/1000).toFixed(2)+' km</span></div>').join(''):'<div class="empty">Todavía no hay carreras guardadas.</div>';document.getElementById('dbStatus').textContent='Ranking sincronizado con la base de datos.'}
+async function loadLeaderboard(){
+  if(!db){document.getElementById('dbStatus').textContent='Pendiente: configura Supabase para ranking compartido.';return;}
+  const {data,error}=await db.from('race_results')
+    .select('id,race_id,winner,distance,created_at')
+    .order('distance',{ascending:false})
+    .limit(50);
+  if(error){
+    document.getElementById('dbStatus').textContent='No se pudo actualizar el ranking: '+error.message;
+    return;
+  }
+  const seen=new Set();
+  const top=[];
+  (data||[]).forEach(row=>{
+    const key=row.race_id||row.id;
+    if(seen.has(key))return;
+    seen.add(key);
+    if(top.length<5)top.push(row);
+  });
+  document.getElementById('leaderboard').innerHTML=top.length
+    ?top.map((r,i)=>'<div class="leader-item"><span class="rank">0'+(i+1)+'</span><span class="leader-name">'+escapeHtml(r.winner||'RESULTADO')+'</span><span class="leader-time">'+(Number(r.distance||0)/1000).toFixed(2)+' km</span></div>').join('')
+    :'<div class="empty">Todavía no hay carreras guardadas.</div>';
+  document.getElementById('dbStatus').textContent='Top 5 actualizado desde Supabase.';
+}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function saveResult(winner,localDistance){
-  if(!db||!currentUser){document.getElementById('dbStatus').textContent='Inicia sesión para guardar resultados.';return;}
+  if(!db||!currentUser){
+    document.getElementById('dbStatus').textContent='Inicia sesión para guardar resultados.';
+    return;
+  }
+  const myDistance=Math.round(Math.max(0,Number(localDistance)||0));
+  const rivalDistance=Math.round(Math.max(0,Number(remoteState&&remoteState.distance)||0));
+  const winnerDistance=Math.max(myDistance,rivalDistance);
   const row={
     user_id:currentUser.id,
     race_id:matchRaceId||('race-'+Date.now()),
     winner,
-    distance:Math.round(Math.max(0,Number(localDistance)||0)),
+    distance:winnerDistance,
+    player_distance:myDistance,
     player_one:names[0],
     player_two:remoteOnline&&remoteState?String(remoteState.name||names[1]):names[1]
   };
@@ -729,11 +767,11 @@ async function loadPlayerHistory(){
   if(!list||!status)return;
   if(!db||!currentUser){
     list.innerHTML='<div class="empty">Inicia sesión para ver tus carreras.</div>';
-    status.textContent='Cada carrera quedará vinculada a tu cuenta.';
+    status.textContent='Cada resultado se guarda con el ID de tu cuenta.';
     return;
   }
   const {data,error}=await db.from('race_results')
-    .select('winner,distance,player_one,player_two,created_at')
+    .select('winner,distance,player_distance,player_one,player_two,created_at')
     .eq('user_id',currentUser.id)
     .order('created_at',{ascending:false})
     .limit(20);
@@ -747,7 +785,7 @@ async function loadPlayerHistory(){
   }else{
     list.innerHTML=data.map((r)=>{
       const date=r.created_at?new Date(r.created_at).toLocaleString('es-EC',{dateStyle:'short',timeStyle:'short'}):'Fecha no disponible';
-      return '<div class="history-item"><div class="history-info"><b>'+escapeHtml(r.winner||'RESULTADO')+'</b><small>'+escapeHtml(r.player_one||'PILOTO')+' vs '+escapeHtml(r.player_two||'RIVAL')+' · '+escapeHtml(date)+'</small></div><strong class="history-distance">'+(Number(r.distance||0)/1000).toFixed(2)+' km</strong></div>';
+      return '<div class="history-item"><div class="history-info"><b>'+escapeHtml(r.winner||'RESULTADO')+'</b><small>'+escapeHtml(r.player_one||'PILOTO')+' vs '+escapeHtml(r.player_two||'RIVAL')+' · '+escapeHtml(date)+'</small></div><strong class="history-distance">'+(Number(r.player_distance??r.distance??0)/1000).toFixed(2)+' km</strong></div>';
     }).join('');
   }
   status.textContent='Se muestran tus últimas '+(data?data.length:0)+' carreras.';
@@ -802,7 +840,12 @@ function connectLiveRace(){
  });
 }
 loadLeaderboard();
-setInterval(loadLeaderboard,10000);
+let leaderboardRefreshBusy=false;
+setInterval(async()=>{
+  if(leaderboardRefreshBusy)return;
+  leaderboardRefreshBusy=true;
+  try{await loadLeaderboard();}finally{leaderboardRefreshBusy=false;}
+},15000);
 connectLiveRace();
 resizeCanvas();
 </script>
