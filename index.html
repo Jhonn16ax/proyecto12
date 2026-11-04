@@ -74,13 +74,13 @@ button:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.35)}
 </main>
 <footer class="footer"><span>SPEED RIVALS © 2026 · BUILT FOR THE TRACK</span><span>LOCAL MULTIPLAYER · SUPABASE READY</span></footer>
 </div>
-<div class="overlay" id="setup">
+<div class="overlay" id="setup" aria-label="Inicio de sesión obligatorio">
 <div class="modal">
 <div class="eyebrow">NEON CIRCUIT / RACE SETUP</div>
 <h2>¿QUIÉN DOMINA<br>LA <span>PISTA?</span></h2>
 <p>Usa correos ficticios para la demostración. No necesitas usar una bandeja de entrada cuando Confirm Email esté desactivado en Supabase.</p>
 <div class="auth-section">
-<div class="eyebrow">CUENTA DE JUGADOR</div>
+<div class="eyebrow">INICIA SESIÓN O CREA TU CUENTA</div>
 <div class="auth-grid">
 <label>CORREO ELECTRÓNICO<input id="authEmail" type="email" autocomplete="email" placeholder="pilotoazul@example.com"></label>
 <label>CONTRASEÑA<input id="authPassword" type="password" minlength="6" autocomplete="current-password" placeholder="Mínimo 6 caracteres"></label>
@@ -97,7 +97,7 @@ button:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.35)}
 <label>TU NOMBRE<input id="name1" maxlength="16" value="AZUL" autocomplete="off"></label>
 <label>NOMBRE DEL RIVAL<input id="name2" maxlength="16" value="ROSA" autocomplete="off"></label>
 </div>
-<div class="modal-actions"><button class="primary" id="confirmBtn" disabled>Entrar a la pista →</button></div>
+<div class="modal-actions"><button class="primary" id="confirmBtn" disabled>Continuar a la pista →</button></div>
 </div></div><div class="overlay hidden" id="resultsOverlay" role="dialog" aria-modal="true" aria-labelledby="resultsTitle">
 <div class="modal"><div class="eyebrow">NEON CIRCUIT / RESULTADOS</div><h2 id="resultsTitle">FIN DE LA CARRERA</h2>
 <p id="resultsMessage">El tiempo terminó. Revisa quién recorrió más distancia.</p>
@@ -113,6 +113,9 @@ let currentUser = null;
 if (window.supabase && SUPABASE_URL.startsWith("https://") && SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_")) {
   db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 }
+// La pantalla de cuenta debe aparecer al abrir la aplicación; nunca iniciar una carrera sola.
+const initialAccountGate=document.getElementById('setup');
+if(initialAccountGate)initialAccountGate.classList.remove('hidden');
 function setAuthMessage(message,isError=false){
   const el=document.getElementById('authStatus');
   if(!el)return;
@@ -126,12 +129,17 @@ function renderAuthState(){
   const login=document.getElementById('loginBtn');
   const signup=document.getElementById('signupBtn');
   const logout=document.getElementById('logoutBtn');
-  if(login)login.classList.toggle('hidden',signedIn);
-  if(signup)signup.classList.toggle('hidden',signedIn);
+  // Mantén el formulario visible incluso si el navegador recuerda una sesión.
+  // Así el jugador puede escribir otro correo, cambiar de cuenta o cerrar sesión.
+  if(login)login.classList.remove('hidden');
+  if(signup)signup.classList.remove('hidden');
   if(logout)logout.classList.toggle('hidden',!signedIn);
-  if(signedIn)setAuthMessage('Sesión iniciada: '+currentUser.email+'. Ya puedes entrar a la pista.');
-  else if(!db)setAuthMessage('No se pudo conectar con Supabase Auth.',true);
-  else setAuthMessage('Inicia sesión o crea una cuenta para entrar a la pista.');
+  if(signedIn){
+    const emailInput=document.getElementById('authEmail');
+    if(emailInput&&!emailInput.value)emailInput.value=currentUser.email||'';
+    setAuthMessage('Sesión recordada: '+currentUser.email+'. Puedes continuar con esta cuenta o escribir otro correo y pulsar Iniciar sesión.');
+  }else if(!db)setAuthMessage('No se pudo conectar con Supabase Auth.',true);
+  else setAuthMessage('Escribe tu correo y contraseña para iniciar sesión o crear una cuenta.');
 }
 async function signUpAccount(){
   if(!db){setAuthMessage('Supabase no está disponible.',true);return;}
