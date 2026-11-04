@@ -78,11 +78,11 @@ button:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.35)}
 <div class="modal">
 <div class="eyebrow">NEON CIRCUIT / RACE SETUP</div>
 <h2>¿QUIÉN DOMINA<br>LA <span>PISTA?</span></h2>
-<p>Inicia sesión o crea una cuenta para guardar tus resultados y consultar tu historial personal.</p>
+<p>Usa correos ficticios para la demostración. No necesitas usar una bandeja de entrada cuando Confirm Email esté desactivado en Supabase.</p>
 <div class="auth-section">
 <div class="eyebrow">CUENTA DE JUGADOR</div>
 <div class="auth-grid">
-<label>CORREO ELECTRÓNICO<input id="authEmail" type="email" autocomplete="email" placeholder="jugador@correo.com"></label>
+<label>CORREO ELECTRÓNICO<input id="authEmail" type="email" autocomplete="email" placeholder="pilotoazul@example.com"></label>
 <label>CONTRASEÑA<input id="authPassword" type="password" minlength="6" autocomplete="current-password" placeholder="Mínimo 6 caracteres"></label>
 </div>
 <div class="modal-actions auth-actions">
@@ -91,6 +91,7 @@ button:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.35)}
 <button class="secondary hidden" id="logoutBtn" type="button">Cerrar sesión</button>
 </div>
 <div class="auth-status" id="authStatus" role="status">Inicia sesión o crea tu cuenta para entrar a la pista.</div>
+<div class="subtle">Cuentas de demostración sugeridas: <b>pilotoazul@example.com</b> y <b>pilotorosa@example.com</b>. Usa contraseñas distintas de al menos 6 caracteres.</div>
 </div>
 <div class="name-grid">
 <label>TU NOMBRE<input id="name1" maxlength="16" value="AZUL" autocomplete="off"></label>
@@ -146,7 +147,7 @@ async function signUpAccount(){
     currentUser=data.user;applySignedInProfile(data.user);renderAuthState();await loadPlayerHistory();
     setAuthMessage('Cuenta creada y sesión iniciada. Ya puedes entrar a la pista.');
   }else{
-    setAuthMessage('Cuenta creada. Revisa tu correo para confirmar la cuenta y luego inicia sesión. Si usas correos de prueba, revisa la opción de confirmación de email en Supabase.');
+    setAuthMessage('Supabase todavía exige confirmar el correo. En Authentication → Sign In / Providers → Email, desactiva Confirm Email y vuelve a crear la cuenta.');
   }
 }
 function applySignedInProfile(user){
