@@ -94,9 +94,10 @@ button:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.35)}
 <div class="subtle">Cuentas de demostración sugeridas: <b>pilotoazul@example.com</b> y <b>pilotorosa@example.com</b>. Usa contraseñas distintas de al menos 6 caracteres.</div>
 </div>
 <div class="name-grid">
-<label>TU NOMBRE<input id="name1" maxlength="16" value="AZUL" autocomplete="off"></label>
-<label>NOMBRE DEL RIVAL<input id="name2" maxlength="16" value="ROSA" autocomplete="off"></label>
+<label>TU NOMBRE<input id="name1" maxlength="16" value="" placeholder="Ej. Jhonn" autocomplete="off"></label>
+<label>NOMBRE DEL RIVAL (SOLO PRÁCTICA)<input id="name2" maxlength="16" value="RIVAL" autocomplete="off"></label>
 </div>
+<div class="subtle">En modo online, cada jugador escribe su propio nombre en su dispositivo. El rival verá ese nombre automáticamente.</div>
 <div class="modal-actions"><button class="primary" id="confirmBtn" disabled>Continuar a la pista →</button></div>
 </div></div><div class="overlay hidden" id="resultsOverlay" role="dialog" aria-modal="true" aria-labelledby="resultsTitle">
 <div class="modal"><div class="eyebrow">NEON CIRCUIT / RESULTADOS</div><h2 id="resultsTitle">FIN DE LA CARRERA</h2>
@@ -121,6 +122,14 @@ function setAuthMessage(message,isError=false){
   if(!el)return;
   el.textContent=message;
   el.classList.toggle('error',!!isError);
+}
+function isPlaceholderDriverName(value){
+  return !String(value||'').trim()||['AZUL','ROSA','PILOTO','RIVAL','PLAYER 1','PLAYER 2'].includes(String(value).trim().toUpperCase());
+}
+function driverNameFromEmail(email){
+  const localPart=String(email||'').split('@')[0]||'PILOTO';
+  const cleaned=localPart.replace(/[._-]+/g,' ').replace(/[^a-zA-Z0-9 ]/g,'').trim().replace(/\\s+/g,' ');
+  return (cleaned||'PILOTO').slice(0,16).toUpperCase();
 }
 function renderAuthState(){
   const signedIn=!!currentUser;
@@ -148,7 +157,10 @@ async function signUpAccount(){
   if(!email||!password){setAuthMessage('Escribe tu correo y contraseña.',true);return;}
   if(password.length<6){setAuthMessage('La contraseña debe tener al menos 6 caracteres.',true);return;}
   setAuthMessage('Creando cuenta…');
-  const displayName=document.getElementById('name1').value.trim()||'PILOTO';
+  const nameInput=document.getElementById('name1');
+  const typedName=nameInput.value.trim();
+  const displayName=isPlaceholderDriverName(typedName)?driverNameFromEmail(email):typedName.slice(0,16);
+  nameInput.value=displayName;
   const {data,error}=await db.auth.signUp({email,password,options:{data:{display_name:displayName}}});
   if(error){setAuthMessage(error.message,true);return;}
   if(data.session&&data.user){
@@ -158,24 +170,27 @@ async function signUpAccount(){
     setAuthMessage('Supabase todavía exige confirmar el correo. En Authentication → Sign In / Providers → Email, desactiva Confirm Email y vuelve a crear la cuenta.');
   }
 }
-function applySignedInProfile(user){
-  const displayName=String(user&&user.user_metadata&&user.user_metadata.display_name||'').trim();
-  if(!displayName)return;
-  names[0]=displayName.slice(0,16);
+function applySignedInProfile(user,preferredName=''){
+  const metadataName=String(user&&user.user_metadata&&user.user_metadata.display_name||'').trim();
+  const selectedName=!isPlaceholderDriverName(preferredName)?String(preferredName).trim():'';
+  const savedName=!isPlaceholderDriverName(metadataName)?metadataName:'';
+  const displayName=(selectedName||savedName||driverNameFromEmail(user&&user.email)).slice(0,16);
+  names[0]=displayName;
   const input=document.getElementById('name1');
-  if(input)input.value=names[0];
+  if(input)input.value=displayName;
   const display=document.getElementById('name1Display');
-  if(display)display.textContent=names[0].toUpperCase();
+  if(display)display.textContent=displayName.toUpperCase();
 }
 async function signInAccount(){
   if(!db){setAuthMessage('Supabase no está disponible.',true);return;}
   const email=document.getElementById('authEmail').value.trim().toLowerCase();
   const password=document.getElementById('authPassword').value;
   if(!email||!password){setAuthMessage('Escribe tu correo y contraseña.',true);return;}
+  const preferredName=document.getElementById('name1').value.trim();
   setAuthMessage('Iniciando sesión…');
   const {data,error}=await db.auth.signInWithPassword({email,password});
   if(error){setAuthMessage(error.message,true);return;}
-  currentUser=data.user;applySignedInProfile(data.user);renderAuthState();await loadPlayerHistory();
+  currentUser=data.user;applySignedInProfile(data.user,preferredName);renderAuthState();await loadPlayerHistory();
   setAuthMessage('Bienvenido. Tu historial personal está listo.');
 }
 async function signOutAccount(){
@@ -191,12 +206,14 @@ async function signOutAccount(){
 if(db){
   db.auth.onAuthStateChange((_event,session)=>{
     currentUser=session&&session.user?session.user:null;
+    if(currentUser)applySignedInProfile(currentUser);
     renderAuthState();
     Promise.resolve().then(()=>loadPlayerHistory());
   });
   db.auth.getUser().then(({data,error})=>{
     if(error){setAuthMessage(error.message,true);return;}
     currentUser=data.user||null;
+    if(currentUser)applySignedInProfile(currentUser);
     renderAuthState();
     loadPlayerHistory();
   }).catch(error=>setAuthMessage(error.message||'No se pudo revisar la sesión.',true));
@@ -217,7 +234,7 @@ let clockOwnerId='',clockOwnerState=null,localIsClockOwner=false,localStartPerf=
 let sharedClockRemainingMs=RACE_SECONDS*1000,sharedClockReceivedAt=0;
 // Marcador persistente de carrera: nunca se cambia al reiniciar el coche tras un choque.
 let raceScores=[0,0];
-let names=['AZUL','ROSA'];
+let names=['PILOTO','RIVAL'];
 // Cada navegador controla un solo coche. El segundo se dibuja sólo al recibir datos de otro jugador conectado.
 const cars=[
  {x:0,lane:0,color:'#54f6ff',accent:'#e4ffff',speed:0,distance:0,totalDistance:0,hit:0,progress:0,steer:0},
@@ -680,7 +697,7 @@ function restart(){
 }
 document.getElementById('confirmBtn').addEventListener('click',()=>{
   if(!currentUser){setAuthMessage('Primero crea una cuenta o inicia sesión.',true);return;}
-  names[0]=document.getElementById('name1').value.trim()||'PILOTO';
+  names[0]=document.getElementById('name1').value.trim()||driverNameFromEmail(currentUser&&currentUser.email);
   names[1]=document.getElementById('name2').value.trim()||'RIVAL';
   document.getElementById('name1Display').textContent=names[0].toUpperCase();
   document.getElementById('name2Display').textContent=names[1].toUpperCase();start();
